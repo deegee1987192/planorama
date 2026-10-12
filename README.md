@@ -16,4 +16,4 @@ Next.js 14 (App Router) + Tailwind + Supabase, deployed on Vercel.
 - `lib/capture.ts` — what happens to captured text (step 2: AI sorting).
 - `lib/daily-rules.ts` — rollover on app load. Repeats are in `lib/data/tasks.ts` (`setTaskDone`).
 - `lib/dates.ts` — "today" is always America/Toronto.
-- `components/todo/DayCard.tsx` — `calendarSlot` is where step 3's calendar events go.
+- `lib/calendar/ics.ts` + `app/api/calendar` — read-only calendar feeds from any Vercel env var ending in `_ICS_URL` or `_ICS`.

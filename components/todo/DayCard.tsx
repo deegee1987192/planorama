@@ -33,7 +33,7 @@ interface DayCardProps {
   onToggle: (task: TaskSummary) => void;
   onReorder: (date: string, orderedIds: string[]) => void;
   onAdd: (date: string, title: string) => Promise<void>;
-  /** Step 3: calendar events for this day render here when the calendar is on. */
+  /** Calendar events for this day, shown above the tasks when the calendar is on. */
   calendarSlot?: React.ReactNode;
 }
 

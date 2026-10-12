@@ -9,14 +9,17 @@ import { addDays, dateRange, monthDay } from "@/lib/dates";
 import { createTask, listTasksBetween, reorderTasks, setTaskDone } from "@/lib/data/tasks";
 import { useStoredBoolean } from "@/lib/use-local-storage";
 import type { TaskSummary } from "@/lib/types";
+import { fetchCalendarEvents } from "@/lib/data/calendar";
+import type { CalendarEvent, CalendarResponse } from "@/lib/calendar/types";
 import { DayCard } from "./DayCard";
+import { DayEvents } from "./DayEvents";
 import { DeadlinesView } from "./DeadlinesView";
 
 type Mode = "all" | "deadlines";
 
 export function TodoScreen() {
   const [mode, setMode] = useState<Mode>("all");
-  // Step 3 reads this to show calendar events in each day card.
+  // Shows read-only events from the calendar feeds (see lib/calendar) in each day card.
   const [calendarOn, setCalendarOn] = useStoredBoolean("planorama.calendarOn", false);
 
   return (
@@ -69,6 +72,26 @@ function WeekView({ calendarOn }: { calendarOn: boolean }) {
   }, [start, end, toast]);
 
   useSyncedLoad(load, [load]);
+
+  const [calendar, setCalendar] = useState<CalendarResponse | null>(null);
+  const loadCalendar = useCallback(async () => {
+    if (!calendarOn) return;
+    try {
+      const res = await fetchCalendarEvents(start, end);
+      setCalendar(res);
+      if (res.errors.length) toast.error(`Couldn't load ${res.errors.join(" and ")} calendar`);
+    } catch (e) {
+      toast.error("Couldn't load your calendar", e);
+    }
+  }, [calendarOn, start, end, toast]);
+
+  useSyncedLoad(loadCalendar, [loadCalendar]);
+
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>();
+    for (const e of calendar?.events ?? []) map.set(e.date, [...(map.get(e.date) ?? []), e]);
+    return map;
+  }, [calendar]);
 
   const byDay = useMemo(() => {
     const map = new Map<string, TaskSummary[]>();
@@ -163,7 +186,11 @@ function WeekView({ calendarOn }: { calendarOn: boolean }) {
               onToggle={toggle}
               onReorder={reorder}
               onAdd={add}
-              // Step 3: calendarSlot={calendarOn ? <DayEvents date={d} /> : null}
+              calendarSlot={
+                calendarOn && calendar ? (
+                  <DayEvents events={eventsByDay.get(d) ?? []} calendars={calendar.calendars} />
+                ) : null
+              }
             />
           ))}
         </div>
