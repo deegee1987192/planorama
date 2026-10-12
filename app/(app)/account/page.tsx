@@ -5,33 +5,47 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, KeyRound, LogOut } from "lucide-react";
 import { useToast } from "@/components/providers/ToastProvider";
 import { getSupabase } from "@/lib/supabase/client";
+import { hasPin, rememberEmail, setPin } from "@/lib/pin";
+
+const onlyDigits = (v: string) => v.replace(/\D/g, "").slice(0, 4);
 
 export default function AccountPage() {
   const router = useRouter();
   const toast = useToast();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [pinSet, setPinSet] = useState<boolean | null>(null);
+  const [pin, setPinValue] = useState("");
   const [confirm, setConfirm] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     getSupabase()
       .auth.getUser()
-      .then(({ data }) => setEmail(data.user?.email ?? ""));
+      .then(({ data }) => {
+        const address = data.user?.email ?? "";
+        setEmail(address);
+        rememberEmail(address);
+      });
+    hasPin()
+      .then(setPinSet)
+      .catch(() => setPinSet(false));
   }, []);
 
-  async function savePassword(e: React.FormEvent) {
+  async function savePin(e: React.FormEvent) {
     e.preventDefault();
-    if (password.length < 8) return toast.error("Use at least 8 characters");
-    if (password !== confirm) return toast.error("The two passwords don't match");
+    if (pin.length !== 4) return toast.error("The PIN needs 4 digits");
+    if (pin !== confirm) return toast.error("The two PINs don't match");
     setSaving(true);
-    const { error } = await getSupabase().auth.updateUser({ password });
-    setSaving(false);
-    if (error) toast.error(error.message, error);
-    else {
-      setPassword("");
+    try {
+      await setPin(pin);
+      setPinValue("");
       setConfirm("");
-      toast.show({ message: "Password saved. You can now sign in with it." });
+      setPinSet(true);
+      toast.show({ message: "PIN saved. Use it to sign in on any device." });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't save the PIN", err);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -60,34 +74,43 @@ export default function AccountPage() {
           <p className="text-[15px]">{email || "…"}</p>
         </div>
 
-        <form onSubmit={savePassword} className="card space-y-3 p-4">
+        <form onSubmit={savePin} className="card space-y-3 p-4">
           <div className="flex items-center gap-2">
             <KeyRound size={18} className="text-todo" />
-            <h2 className="text-lg font-bold">Password</h2>
+            <h2 className="text-lg font-bold">{pinSet ? "Change your PIN" : "Set a PIN"}</h2>
           </div>
           <p className="text-sm text-ink-soft">
-            Set a password to sign in without waiting for an email. Your phone can save it for you.
+            {pinSet
+              ? "You have a PIN. Enter a new one below to replace it."
+              : "Sign in with 4 digits instead of waiting for an email."}{" "}
+            After 5 wrong tries, PIN sign-in locks until you use an email link and set a new PIN.
           </p>
-          <input
-            type="password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="New password (8+ characters)"
-            aria-label="New password"
-            className="field"
-          />
-          <input
-            type="password"
-            autoComplete="new-password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            placeholder="Type it again"
-            aria-label="Confirm new password"
-            className="field"
-          />
-          <button type="submit" className="btn w-full bg-todo text-white" disabled={saving || !password}>
-            {saving ? "Saving…" : "Save password"}
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={4}
+              value={pin}
+              onChange={(e) => setPinValue(onlyDigits(e.target.value))}
+              placeholder="New PIN"
+              aria-label="New PIN"
+              className="field text-center text-xl tracking-[0.4em] placeholder:text-base placeholder:tracking-normal"
+            />
+            <input
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={4}
+              value={confirm}
+              onChange={(e) => setConfirm(onlyDigits(e.target.value))}
+              placeholder="Again"
+              aria-label="Confirm new PIN"
+              className="field text-center text-xl tracking-[0.4em] placeholder:text-base placeholder:tracking-normal"
+            />
+          </div>
+          <button type="submit" className="btn w-full bg-todo text-white" disabled={saving || pin.length !== 4 || confirm.length !== 4}>
+            {saving ? "Saving…" : "Save PIN"}
           </button>
         </form>
 

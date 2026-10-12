@@ -1,12 +1,13 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Mail } from "lucide-react";
 import { Segmented } from "@/components/ui";
 import { getSupabase } from "@/lib/supabase/client";
+import { rememberEmail, rememberedEmail, signInWithPin } from "@/lib/pin";
 
-type Method = "password" | "link";
+type Method = "pin" | "link";
 
 export default function LoginPage() {
   return (
@@ -18,38 +19,46 @@ export default function LoginPage() {
 
 function LoginForm() {
   const params = useSearchParams();
-  const [method, setMethod] = useState<Method>("password");
+  const [method, setMethod] = useState<Method>("pin");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [savedEmail, setSavedEmail] = useState("");
+  const [pin, setPin] = useState("");
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<"idle" | "busy" | "sent">("idle");
-  const [error, setError] = useState(params.get("error") ? "That link didn't work or has expired. Try your password, or send a new link." : "");
+  const [error, setError] = useState(params.get("error") ? "That link didn't work or has expired. Send a new one." : "");
+
+  useEffect(() => {
+    const saved = rememberedEmail();
+    setSavedEmail(saved);
+    setEmail(saved);
+  }, []);
 
   function friendly(message: string): string {
     const m = message.toLowerCase();
-    if (m.includes("rate limit")) return "Too many emails were sent. Wait about an hour, or sign in with your password.";
+    if (m.includes("rate limit")) return "Too many emails were sent. Wait about an hour and try again.";
     if (m.includes("signups not allowed")) return "That email doesn't have an account.";
-    if (m.includes("invalid login credentials")) return "Wrong email or password. If you haven't set a password yet, use an email link, then set one under Account.";
     return message;
   }
 
-  async function signInWithPassword(e: React.FormEvent) {
-    e.preventDefault();
+  async function submitPin(value: string) {
+    if (!/^\d{4}$/.test(value) || !email.trim() || status === "busy") return;
     setError("");
     setStatus("busy");
-    const { error } = await getSupabase().auth.signInWithPassword({ email: email.trim(), password });
-    if (error) {
-      setStatus("idle");
-      setError(friendly(error.message));
-    } else {
+    const result = await signInWithPin(email, value);
+    if (result.ok) {
       window.location.assign("/");
+      return;
     }
+    setStatus("idle");
+    setPin("");
+    setError(result.message);
   }
 
   async function sendLink(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setStatus("busy");
+    rememberEmail(email);
     const { error } = await getSupabase().auth.signInWithOtp({
       email: email.trim(),
       options: {
@@ -126,7 +135,7 @@ function LoginForm() {
             <Segmented<Method>
               label="Sign-in method"
               options={[
-                { value: "password", label: "Password" },
+                { value: "pin", label: "PIN" },
                 { value: "link", label: "Email link" },
               ]}
               value={method}
@@ -137,42 +146,96 @@ function LoginForm() {
               activeClass="bg-todo text-white shadow-card"
               className="mb-4"
             />
-            <form onSubmit={method === "password" ? signInWithPassword : sendLink} className="space-y-3">
-              <div>
-                <label htmlFor="email" className="label">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="field"
-                />
-              </div>
-              {method === "password" && (
+
+            {method === "pin" ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void submitPin(pin);
+                }}
+                className="space-y-4"
+              >
+                {savedEmail ? (
+                  <p className="text-center text-sm text-ink-soft">
+                    Signing in as <strong className="text-ink">{savedEmail}</strong>
+                    <br />
+                    <button
+                      type="button"
+                      className="min-h-[44px] font-semibold text-todo-text"
+                      onClick={() => {
+                        setSavedEmail("");
+                        setEmail("");
+                      }}
+                    >
+                      Not you?
+                    </button>
+                  </p>
+                ) : (
+                  <div>
+                    <label htmlFor="email" className="label">
+                      Email
+                    </label>
+                    <input
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      className="field"
+                    />
+                  </div>
+                )}
                 <div>
-                  <label htmlFor="password" className="label">
-                    Password
+                  <label htmlFor="pin" className="label text-center">
+                    PIN
                   </label>
                   <input
-                    id="password"
+                    id="pin"
                     type="password"
-                    autoComplete="current-password"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    autoFocus={Boolean(savedEmail)}
+                    maxLength={4}
+                    value={pin}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, "").slice(0, 4);
+                      setPin(value);
+                      if (value.length === 4) void submitPin(value);
+                    }}
+                    placeholder="••••"
+                    className="field h-16 text-center text-3xl tracking-[0.6em]"
+                    disabled={status === "busy"}
+                  />
+                </div>
+                <button type="submit" className="btn w-full bg-todo text-white" disabled={status === "busy" || pin.length !== 4 || !email.trim()}>
+                  {status === "busy" ? "Signing in…" : "Sign in"}
+                </button>
+                <p className="text-center text-xs text-ink-faint">No PIN yet? Sign in with an email link, then set one under Account.</p>
+              </form>
+            ) : (
+              <form onSubmit={sendLink} className="space-y-3">
+                <div>
+                  <label htmlFor="link-email" className="label">
+                    Email
+                  </label>
+                  <input
+                    id="link-email"
+                    type="email"
+                    autoComplete="email"
                     required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
                     className="field"
                   />
                 </div>
-              )}
-              <button type="submit" className="btn w-full bg-todo text-white" disabled={status === "busy"}>
-                {status === "busy" ? "One moment…" : method === "password" ? "Sign in" : "Send magic link"}
-              </button>
-            </form>
+                <button type="submit" className="btn w-full bg-todo text-white" disabled={status === "busy"}>
+                  {status === "busy" ? "Sending…" : "Send magic link"}
+                </button>
+              </form>
+            )}
           </>
         )}
         {error && <p className="mt-3 rounded-2xl bg-danger-soft px-4 py-3 text-sm text-danger-text">{error}</p>}
