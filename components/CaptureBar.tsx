@@ -31,7 +31,7 @@ export function CaptureBar() {
   const [micSupported, setMicSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const recognition = useRef<SpeechRecognitionLike | null>(null);
-  const { refreshInbox } = useApp();
+  const { refreshData } = useApp();
   const toast = useToast();
 
   useEffect(() => {
@@ -75,7 +75,7 @@ export function CaptureBar() {
     try {
       const result = await captureText(value);
       setText("");
-      refreshInbox();
+      refreshData();
       toast.show({
         message: result.message,
         actionLabel: "Undo",
@@ -83,7 +83,7 @@ export function CaptureBar() {
           try {
             await result.undo();
             setText(value);
-            refreshInbox();
+            refreshData();
           } catch (err) {
             toast.error("Couldn't undo", err);
           }

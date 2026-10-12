@@ -14,6 +14,8 @@ interface AppState {
   today: string;
   inboxCount: number;
   refreshInbox: () => void;
+  /** Re-fetch the current screen and the inbox count (e.g. after the capture bar files something). */
+  refreshData: () => void;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -61,6 +63,11 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     refreshInbox();
   }, [refreshInbox]);
 
+  const refreshData = useCallback(() => {
+    setSyncTick((t) => t + 1);
+    refreshInbox();
+  }, [refreshInbox]);
+
   useEffect(() => {
     void sync();
     const onVisible = () => {
@@ -81,7 +88,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AppContext.Provider value={{ ready, syncTick, today, inboxCount, refreshInbox }}>
+    <AppContext.Provider value={{ ready, syncTick, today, inboxCount, refreshInbox, refreshData }}>
       <ToastProvider>{children}</ToastProvider>
     </AppContext.Provider>
   );
