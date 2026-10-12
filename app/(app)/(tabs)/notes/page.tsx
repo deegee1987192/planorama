@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { NotebookPen, Plus, Trash2 } from "lucide-react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { ChevronDown, NotebookPen, Pencil, Plus, Trash2 } from "lucide-react";
 import { useSyncedLoad } from "@/components/providers/AppProviders";
 import { useToast } from "@/components/providers/ToastProvider";
 import { EmptyState, LoadingCards, PageHeader, Sheet } from "@/components/ui";
@@ -61,12 +61,7 @@ export default function NotesPage() {
       ) : (
         <ul className="space-y-3">
           {notes.map((note) => (
-            <li key={note.id}>
-              <button type="button" onClick={() => setEditing(note)} className="card block w-full p-4 text-left">
-                {note.title && <h2 className="text-[17px] font-bold leading-snug text-notes">{note.title}</h2>}
-                {note.body && <p className="mt-1 line-clamp-6 whitespace-pre-line text-sm text-ink-soft">{note.body}</p>}
-              </button>
-            </li>
+            <NoteCard key={note.id} note={note} onEdit={() => setEditing(note)} />
           ))}
         </ul>
       )}
@@ -81,6 +76,53 @@ export default function NotesPage() {
         )}
       </Sheet>
     </>
+  );
+}
+
+/** Tap the card to expand/collapse long notes; the pencil opens the editor. */
+function NoteCard({ note, onEdit }: { note: Note; onEdit: () => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const [truncated, setTruncated] = useState(false);
+  const bodyRef = useRef<HTMLParagraphElement>(null);
+
+  useLayoutEffect(() => {
+    const el = bodyRef.current;
+    if (el && !expanded) setTruncated(el.scrollHeight > el.clientHeight + 1);
+  }, [note.body, expanded]);
+
+  return (
+    <li className="card relative">
+      <button
+        type="button"
+        onClick={() => truncated && setExpanded((x) => !x)}
+        aria-expanded={truncated ? expanded : undefined}
+        className="block w-full p-4 pr-14 text-left"
+      >
+        {note.title && <h2 className="text-[17px] font-bold leading-snug text-notes">{note.title}</h2>}
+        {note.body && (
+          <p
+            ref={bodyRef}
+            className={`mt-1 whitespace-pre-line text-sm text-ink-soft ${expanded ? "" : "line-clamp-6"}`}
+          >
+            {note.body}
+          </p>
+        )}
+        {truncated && (
+          <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-notes">
+            {expanded ? "Show less" : "Show more"}
+            <ChevronDown size={14} className={expanded ? "rotate-180" : ""} />
+          </span>
+        )}
+      </button>
+      <button
+        type="button"
+        onClick={onEdit}
+        aria-label={`Edit note${note.title ? ` "${note.title}"` : ""}`}
+        className="icon-btn absolute right-2 top-2 text-ink-faint hover:bg-black/5"
+      >
+        <Pencil size={16} />
+      </button>
+    </li>
   );
 }
 
