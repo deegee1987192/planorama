@@ -2,7 +2,7 @@ import { Clock, Flag, Repeat, ListChecks, CornerDownRight } from "lucide-react";
 import { formatTime, dayLabel, monthDay } from "@/lib/dates";
 import type { TaskSummary } from "@/lib/types";
 
-const chip = "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold";
+const chip = "inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-left text-xs font-semibold [&>svg]:shrink-0";
 
 export function DeadlineChip({ deadline, today, done }: { deadline: string; today: string; done?: boolean }) {
   if (done) {

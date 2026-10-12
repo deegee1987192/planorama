@@ -8,7 +8,7 @@ export function MainContainer({ children }: { children: React.ReactNode }) {
   return (
     <main
       className={`mx-auto px-4 pb-[calc(152px+env(safe-area-inset-bottom))] ${
-        wide ? "max-w-2xl lg:max-w-[1600px] lg:px-6" : "max-w-2xl"
+        wide ? "max-w-2xl md:max-w-[1600px] md:px-6" : "max-w-2xl"
       }`}
     >
       {children}

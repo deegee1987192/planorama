@@ -7,7 +7,7 @@ import { LoadingCards } from "@/components/ui";
 import { addDays, dateRange, monthName } from "@/lib/dates";
 import { listDeadlineTasks } from "@/lib/data/tasks";
 import { DayCard } from "./DayCard";
-import { DayEvents } from "./DayEvents";
+import { CalendarBadge, DayEvents, eventTime } from "./DayEvents";
 import { useCalendarEvents, useDayTasks } from "./useDayTasks";
 
 const WEEKDAY_HEADERS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -53,7 +53,7 @@ export function MonthView({ calendarOn }: { calendarOn: boolean }) {
   }
 
   return (
-    <div className="mx-auto max-w-2xl lg:grid lg:max-w-6xl lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-4">
+    <div className="mx-auto max-w-2xl md:max-w-none lg:grid lg:max-w-[1400px] lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-4">
       <section className="card mb-3 p-3 lg:mb-0">
         <div className="mb-2 flex items-center justify-between">
           <button type="button" onClick={() => changeMonth(-1)} aria-label="Previous month" className="icon-btn text-ink-soft hover:bg-black/5">
@@ -82,7 +82,7 @@ export function MonthView({ calendarOn }: { calendarOn: boolean }) {
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-1 [&>*]:min-w-0">
           {cells.map((d) => {
             const dayTasks = byDay.get(d) ?? [];
             const events = eventsByDay.get(d) ?? [];
@@ -96,38 +96,46 @@ export function MonthView({ calendarOn }: { calendarOn: boolean }) {
                 onClick={() => setSelected(d)}
                 aria-pressed={isSelected}
                 aria-label={`${d}: ${dayTasks.length} tasks${events.length ? `, ${events.length} events` : ""}${deadlines.has(d) ? ", deadline" : ""}`}
-                className={`flex min-h-[52px] flex-col items-center rounded-xl px-0.5 pb-1 pt-1 text-left transition lg:min-h-[96px] lg:items-stretch lg:px-1.5 ${
+                className={`flex min-h-[52px] min-w-0 flex-col items-center rounded-xl px-0.5 pb-1 pt-1 text-left transition md:min-h-[96px] md:items-stretch md:px-1.5 ${
                   isSelected ? "bg-todo-soft" : "hover:bg-black/[0.03]"
                 } ${isToday ? "ring-2 ring-todo" : ""}`}
               >
                 <span
-                  className={`text-sm font-semibold lg:text-xs ${
+                  className={`text-sm font-semibold md:text-xs ${
                     isToday ? "text-todo-text" : inMonth ? "text-ink" : "text-ink-faint/60"
                   }`}
                 >
                   {Number(d.slice(8))}
                 </span>
-                {/* Phones: dots. Desktop: the first few task titles. */}
-                <span className="mt-1 flex flex-wrap justify-center gap-0.5 lg:hidden">
+                {/* Phones: dots. Tablet and desktop: everything, written out and wrapped. */}
+                <span className="mt-1 flex flex-wrap justify-center gap-0.5 md:hidden">
                   {dayTasks.slice(0, 3).map((t) => (
                     <span key={t.id} className={`h-1.5 w-1.5 rounded-full ${t.partial ? "bg-partial" : "bg-todo"}`} />
                   ))}
                   {events.length > 0 && <span className="h-1.5 w-1.5 rounded-full bg-[#35607F]" />}
                   {deadlines.has(d) && <span className="h-1.5 w-1.5 rounded-full bg-danger" />}
                 </span>
-                <span className="mt-0.5 hidden space-y-0.5 lg:block">
-                  {deadlines.has(d) && <span className="block truncate text-[11px] font-semibold text-danger-text">Deadline</span>}
-                  {events.length > 0 && (
-                    <span className="block truncate text-[11px] text-[#2C5069]">
-                      {events.length} event{events.length > 1 ? "s" : ""}
-                    </span>
+                <span className="mt-0.5 hidden min-w-0 space-y-1 md:block">
+                  {deadlines.has(d) && (
+                    <span className="block break-words text-[11px] font-semibold leading-tight text-danger-text">Deadline</span>
                   )}
-                  {dayTasks.slice(0, 3).map((t) => (
-                    <span key={t.id} className="block truncate text-[11px] text-ink-soft">
+                  {events.map((e) => (
+                    <span key={e.id} className="flex items-start gap-1 text-[11px] leading-tight">
+                      <CalendarBadge calendars={calendars} name={e.calendar} />
+                      <span className="min-w-0 break-words text-ink-soft">
+                        {eventTime(e)}
+                        {e.title && !/^busy$/i.test(e.title) ? ` ${e.title}` : ""}
+                      </span>
+                    </span>
+                  ))}
+                  {dayTasks.map((t) => (
+                    <span
+                      key={t.id}
+                      className={`block break-words rounded px-0.5 text-[11px] leading-tight text-ink ${t.partial ? "bg-partial-soft" : ""}`}
+                    >
                       {t.title}
                     </span>
                   ))}
-                  {dayTasks.length > 3 && <span className="block text-[11px] text-ink-faint">+{dayTasks.length - 3} more</span>}
                 </span>
               </button>
             );

@@ -169,7 +169,7 @@ function TaskExtras({ task }: { task: TaskSummary }) {
         </ul>
       )}
       {task.notes.trim() && (
-        <p className="line-clamp-2 whitespace-pre-line text-[12.5px] italic leading-snug text-ink-faint">{task.notes.trim()}</p>
+        <p className="line-clamp-2 whitespace-pre-line break-words text-[12.5px] italic md:line-clamp-none leading-snug text-ink-faint">{task.notes.trim()}</p>
       )}
     </div>
   );
