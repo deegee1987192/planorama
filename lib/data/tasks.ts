@@ -6,29 +6,57 @@ const db = () => getSupabase();
 
 export type NewTask = Partial<Omit<Task, "id" | "user_id" | "created_at">> & { title: string };
 
+const SUMMARY = "*, subtasks(id, done, title, sort_order)";
+
+function sortSubtasks(tasks: TaskSummary[]): TaskSummary[] {
+  for (const t of tasks) t.subtasks.sort((a, b) => a.sort_order - b.sort_order);
+  return tasks;
+}
+
+/** Unfinished tasks planned between two dates (finished ones live under Done). */
 export async function listTasksBetween(start: string, end: string): Promise<TaskSummary[]> {
   const { data, error } = await db()
     .from("tasks")
-    .select("*, subtasks(id, done)")
+    .select(SUMMARY)
+    .eq("done", false)
     .gte("do_on", start)
     .lte("do_on", end)
     .order("sort_order")
     .order("created_at");
   if (error) throw error;
-  return data as TaskSummary[];
+  return sortSubtasks(data as TaskSummary[]);
+}
+
+/** Finished tasks, most recent first. They're deleted 7 days after completion. */
+export async function listDoneTasks(): Promise<TaskSummary[]> {
+  const { data, error } = await db()
+    .from("tasks")
+    .select(SUMMARY)
+    .eq("done", true)
+    .order("done_at", { ascending: false });
+  if (error) throw error;
+  return sortSubtasks(data as TaskSummary[]);
+}
+
+export const DONE_KEEP_DAYS = 7;
+
+export async function purgeOldDoneTasks(): Promise<void> {
+  const cutoff = new Date(Date.now() - DONE_KEEP_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const { error } = await db().from("tasks").delete().eq("done", true).lt("done_at", cutoff);
+  if (error) throw error;
 }
 
 /** Every unfinished task with a deadline, soonest first. */
 export async function listDeadlineTasks(): Promise<TaskSummary[]> {
   const { data, error } = await db()
     .from("tasks")
-    .select("*, subtasks(id, done)")
+    .select(SUMMARY)
     .eq("done", false)
     .not("deadline", "is", null)
     .order("deadline")
     .order("sort_order");
   if (error) throw error;
-  return data as TaskSummary[];
+  return sortSubtasks(data as TaskSummary[]);
 }
 
 export async function getTask(id: string): Promise<TaskWithSubtasks | null> {
@@ -94,8 +122,17 @@ export async function reorderTasks(ids: string[]): Promise<void> {
  * occurrence is created (with its subtasks unchecked).
  */
 export async function setTaskDone(task: Task, done: boolean): Promise<void> {
-  await updateTask(task.id, { done, done_at: done ? new Date().toISOString() : null });
+  await updateTask(task.id, {
+    done,
+    done_at: done ? new Date().toISOString() : null,
+    ...(done ? { partial: false } : {}),
+  });
   if (done && task.repeat !== "none") await createNextRepeat(task);
+}
+
+/** Started but not finished. Partly-done tasks still roll over to today. */
+export async function setTaskPartial(id: string, partial: boolean): Promise<void> {
+  await updateTask(id, { partial });
 }
 
 export function nextRepeatDate(iso: string, repeat: Repeat): string {

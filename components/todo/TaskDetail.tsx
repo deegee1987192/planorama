@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, CalendarArrowUp, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, CalendarArrowUp, CircleDashed, Plus, Trash2, X } from "lucide-react";
 import { useApp, useSyncedLoad } from "@/components/providers/AppProviders";
 import { useToast } from "@/components/providers/ToastProvider";
 import { LoadingCards, Segmented } from "@/components/ui";
@@ -274,8 +274,16 @@ export function TaskDetail({ id }: { id: string }) {
           </div>
 
           <div className="grid grid-cols-2 gap-2 pt-1">
-            <button type="button" onClick={toggleDone} className="btn col-span-2 bg-todo text-white">
+            <button type="button" onClick={toggleDone} className="btn bg-todo text-white">
               <Check size={18} /> {task.done ? "Mark not done" : "Mark done"}
+            </button>
+            <button
+              type="button"
+              onClick={() => save({ partial: !task.partial, ...(task.done ? { done: false, done_at: null } : {}) })}
+              aria-pressed={task.partial}
+              className={`btn shadow-card ${task.partial ? "bg-partial text-white" : "bg-partial-soft text-[#7A5510]"}`}
+            >
+              <CircleDashed size={18} /> Partly done
             </button>
             <button type="button" onClick={tomorrow} className="btn bg-white text-ink shadow-card">
               <CalendarArrowUp size={18} /> Move to tomorrow

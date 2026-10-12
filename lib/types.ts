@@ -14,6 +14,8 @@ export interface Task {
   repeat: Repeat;
   done: boolean;
   done_at: string | null;
+  /** Started but not finished: still rolls over, shown with a tint. */
+  partial: boolean;
   sort_order: number;
   carried_over: boolean;
   created_at: string;
@@ -29,9 +31,9 @@ export interface Subtask {
   created_at: string;
 }
 
-/** A task as shown in lists: with just enough subtask info for the "x of y" tag. */
+/** A task as shown in lists, with its subtasks (shown small under the title). */
 export interface TaskSummary extends Task {
-  subtasks: Pick<Subtask, "id" | "done">[];
+  subtasks: Pick<Subtask, "id" | "done" | "title" | "sort_order">[];
 }
 
 export interface TaskWithSubtasks extends Task {
@@ -68,6 +70,7 @@ export interface Note {
   id: string;
   title: string;
   body: string;
+  sort_order: number;
   created_at: string;
 }
 

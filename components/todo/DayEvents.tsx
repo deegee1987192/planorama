@@ -4,10 +4,10 @@ import type { CalendarEvent } from "@/lib/calendar/types";
 
 // One colour per calendar, assigned in the order the calendars are listed.
 const PALETTE = [
-  { bar: "bg-[#B42318]", soft: "bg-[#FEF0EE]", text: "text-[#912018]" },
-  { bar: "bg-notes", soft: "bg-notes-soft/70", text: "text-notes" },
-  { bar: "bg-buy", soft: "bg-buy-soft/70", text: "text-buy" },
-  { bar: "bg-research", soft: "bg-research-soft/70", text: "text-research" },
+  { bar: "bg-[#35607F]", soft: "bg-[#E3ECF2]", text: "text-[#2C5069]" },
+  { bar: "bg-[#4E6B45]", soft: "bg-[#E5EDE1]", text: "text-[#3F5838]" },
+  { bar: "bg-[#6B4E8A]", soft: "bg-[#ECE6F3]", text: "text-[#5A4174]" },
+  { bar: "bg-[#3D6B6B]", soft: "bg-[#E1EDED]", text: "text-[#325858]" },
 ];
 
 export function calendarColor(calendars: string[], name: string) {

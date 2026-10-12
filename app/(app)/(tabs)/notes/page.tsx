@@ -1,11 +1,29 @@
 "use client";
 
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
-import { ChevronDown, NotebookPen, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, GripVertical, NotebookPen, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { CSS } from "@dnd-kit/utilities";
 import { useSyncedLoad } from "@/components/providers/AppProviders";
 import { useToast } from "@/components/providers/ToastProvider";
 import { EmptyState, LoadingCards, PageHeader, Sheet } from "@/components/ui";
-import { createNote, deleteNote, listNotes, updateNote } from "@/lib/data/notes";
+import { createNote, deleteNote, listNotes, reorderNotes, updateNote } from "@/lib/data/notes";
 import type { Note } from "@/lib/types";
 
 export default function NotesPage() {
@@ -35,6 +53,26 @@ export default function NotesPage() {
     }
   }
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  async function handleDragEnd({ active, over }: DragEndEvent) {
+    if (!notes || !over || active.id === over.id) return;
+    const from = notes.findIndex((n) => n.id === active.id);
+    const to = notes.findIndex((n) => n.id === over.id);
+    if (from < 0 || to < 0) return;
+    const next = arrayMove(notes, from, to);
+    setNotes(next);
+    try {
+      await reorderNotes(next.map((n) => n.id));
+    } catch (e) {
+      toast.error("Couldn't save the new order", e);
+      void load();
+    }
+  }
+
   async function remove(note: Note) {
     if (!window.confirm("Delete this note?")) return;
     setEditing(null);
@@ -59,11 +97,15 @@ export default function NotesPage() {
       ) : notes.length === 0 ? (
         <EmptyState icon={<NotebookPen size={32} />} title="No notes yet" hint="Jot down anything worth keeping." />
       ) : (
-        <ul className="space-y-3">
-          {notes.map((note) => (
-            <NoteCard key={note.id} note={note} onEdit={() => setEditing(note)} />
-          ))}
-        </ul>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis]}>
+          <SortableContext items={notes.map((n) => n.id)} strategy={verticalListSortingStrategy}>
+            <ul className="space-y-3">
+              {notes.map((note) => (
+                <NoteCard key={note.id} note={note} onEdit={() => setEditing(note)} />
+              ))}
+            </ul>
+          </SortableContext>
+        </DndContext>
       )}
 
       <Sheet open={editing !== null} onClose={() => setEditing(null)} title={editing === "new" ? "New note" : "Edit note"}>
@@ -79,8 +121,11 @@ export default function NotesPage() {
   );
 }
 
-/** Tap the card to expand/collapse long notes; the pencil opens the editor. */
+/** Tap the card to expand/collapse long notes; the pencil opens the editor; drag the grip to reorder. */
 function NoteCard({ note, onEdit }: { note: Note; onEdit: () => void }) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    id: note.id,
+  });
   const [expanded, setExpanded] = useState(false);
   const [truncated, setTruncated] = useState(false);
   const bodyRef = useRef<HTMLParagraphElement>(null);
@@ -91,12 +136,16 @@ function NoteCard({ note, onEdit }: { note: Note; onEdit: () => void }) {
   }, [note.body, expanded]);
 
   return (
-    <li className="card relative">
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`card relative ${isDragging ? "z-10 shadow-xl" : ""}`}
+    >
       <button
         type="button"
         onClick={() => truncated && setExpanded((x) => !x)}
         aria-expanded={truncated ? expanded : undefined}
-        className="block w-full p-4 pr-14 text-left"
+        className="block min-h-[104px] w-full p-4 pr-14 text-left"
       >
         {note.title && <h2 className="text-[17px] font-bold leading-snug text-notes">{note.title}</h2>}
         {note.body && (
@@ -121,6 +170,16 @@ function NoteCard({ note, onEdit }: { note: Note; onEdit: () => void }) {
         className="icon-btn absolute right-2 top-2 text-ink-faint hover:bg-black/5"
       >
         <Pencil size={16} />
+      </button>
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        {...attributes}
+        {...listeners}
+        aria-label={`Reorder note${note.title ? ` "${note.title}"` : ""}`}
+        className="icon-btn absolute right-2 top-[52px] cursor-grab touch-none text-ink-faint/70 active:cursor-grabbing"
+      >
+        <GripVertical size={18} />
       </button>
     </li>
   );

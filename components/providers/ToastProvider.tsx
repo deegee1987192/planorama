@@ -28,7 +28,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const pathname = usePathname();
   // Main tab screens have the capture bar + tab bar at the bottom; sit above them.
-  const hasBars = !pathname.startsWith("/task/");
+  const hasBars = !pathname.startsWith("/task/") && pathname !== "/account";
 
   const show = useCallback((opts: ToastOptions) => {
     clearTimeout(timer.current);
@@ -64,7 +64,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             {toast.actionLabel && (
               <button
                 type="button"
-                className="min-h-[44px] rounded-full px-3 font-semibold text-[#FFB59E]"
+                className="min-h-[44px] rounded-full px-3 font-semibold text-[#F3C969]"
                 onClick={() => {
                   toast.onAction?.();
                   setToast(null);

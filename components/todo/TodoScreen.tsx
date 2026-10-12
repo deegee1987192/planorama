@@ -1,25 +1,24 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { CalendarDays, CalendarOff, ChevronLeft, ChevronRight } from "lucide-react";
-import { useApp, useSyncedLoad } from "@/components/providers/AppProviders";
-import { useToast } from "@/components/providers/ToastProvider";
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { CalendarDays, CalendarOff, ChevronLeft, ChevronRight, UserRound } from "lucide-react";
+import { useApp } from "@/components/providers/AppProviders";
 import { LoadingCards, PageHeader, Segmented } from "@/components/ui";
 import { addDays, dateRange, monthDay } from "@/lib/dates";
-import { createTask, listTasksBetween, reorderTasks, setTaskDone } from "@/lib/data/tasks";
 import { useStoredBoolean } from "@/lib/use-local-storage";
-import type { TaskSummary } from "@/lib/types";
-import { fetchCalendarEvents } from "@/lib/data/calendar";
-import type { CalendarEvent, CalendarResponse } from "@/lib/calendar/types";
 import { DayCard } from "./DayCard";
 import { DayEvents } from "./DayEvents";
 import { DeadlinesView } from "./DeadlinesView";
+import { DoneView } from "./DoneView";
+import { MonthView } from "./MonthView";
+import { useCalendarEvents, useDayTasks } from "./useDayTasks";
 
-type Mode = "all" | "deadlines";
+type Mode = "week" | "month" | "deadlines" | "done";
 
 export function TodoScreen() {
-  const [mode, setMode] = useState<Mode>("all");
-  // Shows read-only events from the calendar feeds (see lib/calendar) in each day card.
+  const [mode, setMode] = useState<Mode>("week");
+  // Shows read-only events from the calendar feeds (see lib/calendar) in the day cards.
   const [calendarOn, setCalendarOn] = useStoredBoolean("planorama.calendarOn", false);
 
   return (
@@ -34,116 +33,55 @@ export function TodoScreen() {
           {calendarOn ? <CalendarDays size={18} /> : <CalendarOff size={18} />}
           Calendar {calendarOn ? "on" : "off"}
         </button>
+        <Link href="/account" aria-label="Account" className="icon-btn bg-white text-ink-soft shadow-card">
+          <UserRound size={18} />
+        </Link>
       </PageHeader>
 
       <Segmented<Mode>
         label="View"
         options={[
-          { value: "all", label: "All tasks" },
+          { value: "week", label: "Week" },
+          { value: "month", label: "Calendar" },
           { value: "deadlines", label: "Deadlines" },
+          { value: "done", label: "Done" },
         ]}
         value={mode}
         onChange={setMode}
         activeClass="bg-todo text-white shadow-card"
-        className="mb-4"
+        className="mx-auto mb-4 max-w-2xl"
       />
 
-      {mode === "all" ? <WeekView calendarOn={calendarOn} /> : <DeadlinesView />}
+      {mode === "week" && <WeekView calendarOn={calendarOn} />}
+      {mode === "month" && <MonthView calendarOn={calendarOn} />}
+      {mode === "deadlines" && (
+        <div className="mx-auto max-w-2xl">
+          <DeadlinesView />
+        </div>
+      )}
+      {mode === "done" && (
+        <div className="mx-auto max-w-2xl">
+          <DoneView />
+        </div>
+      )}
     </>
   );
 }
 
 function WeekView({ calendarOn }: { calendarOn: boolean }) {
   const { today } = useApp();
-  const toast = useToast();
   const [weekOffset, setWeekOffset] = useState(0);
-  const [tasks, setTasks] = useState<TaskSummary[] | null>(null);
 
   const start = addDays(today, weekOffset * 7);
   const days = useMemo(() => dateRange(start, 7), [start]);
   const end = days[6];
 
-  const load = useCallback(async () => {
-    try {
-      setTasks(await listTasksBetween(start, end));
-    } catch (e) {
-      toast.error("Couldn't load tasks", e);
-    }
-  }, [start, end, toast]);
-
-  useSyncedLoad(load, [load]);
-
-  const [calendar, setCalendar] = useState<CalendarResponse | null>(null);
-  const loadCalendar = useCallback(async () => {
-    if (!calendarOn) return;
-    try {
-      const res = await fetchCalendarEvents(start, end);
-      setCalendar(res);
-      if (res.errors.length) toast.error(`Couldn't load ${res.errors.join(" and ")} calendar`);
-    } catch (e) {
-      toast.error("Couldn't load your calendar", e);
-    }
-  }, [calendarOn, start, end, toast]);
-
-  useSyncedLoad(loadCalendar, [loadCalendar]);
-
-  const eventsByDay = useMemo(() => {
-    const map = new Map<string, CalendarEvent[]>();
-    for (const e of calendar?.events ?? []) map.set(e.date, [...(map.get(e.date) ?? []), e]);
-    return map;
-  }, [calendar]);
-
-  const byDay = useMemo(() => {
-    const map = new Map<string, TaskSummary[]>();
-    for (const d of days) map.set(d, []);
-    for (const t of tasks ?? []) if (t.do_on) map.get(t.do_on)?.push(t);
-    return map;
-  }, [days, tasks]);
-
-  async function toggle(task: TaskSummary) {
-    const done = !task.done;
-    setTasks((prev) => prev?.map((t) => (t.id === task.id ? { ...t, done } : t)) ?? null);
-    try {
-      await setTaskDone(task, done);
-      if (done && task.repeat !== "none") await load();
-    } catch (e) {
-      toast.error("Couldn't update task", e);
-      void load();
-    }
-  }
-
-  async function reorder(date: string, orderedIds: string[]) {
-    setTasks((prev) => {
-      if (!prev) return prev;
-      const others = prev.filter((t) => t.do_on !== date);
-      const dayTasks = orderedIds
-        .map((id, i) => {
-          const t = prev.find((x) => x.id === id);
-          return t ? { ...t, sort_order: i } : undefined;
-        })
-        .filter((t): t is TaskSummary => Boolean(t));
-      return [...others, ...dayTasks];
-    });
-    try {
-      await reorderTasks(orderedIds);
-    } catch (e) {
-      toast.error("Couldn't save the new order", e);
-      void load();
-    }
-  }
-
-  async function add(date: string, title: string) {
-    try {
-      await createTask({ title, do_on: date });
-      await load();
-    } catch (e) {
-      toast.error("Couldn't add task", e);
-    }
-  }
+  const { tasks, byDay, toggle, togglePartial, reorder, add } = useDayTasks(start, end);
+  const { calendars, eventsByDay } = useCalendarEvents(calendarOn, start, end);
 
   return (
     <>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mx-auto mb-3 flex max-w-2xl items-center justify-between">
         <button
           type="button"
           onClick={() => setWeekOffset((w) => w - 1)}
@@ -176,7 +114,8 @@ function WeekView({ calendarOn }: { calendarOn: boolean }) {
       {tasks === null ? (
         <LoadingCards count={4} />
       ) : (
-        <div className="space-y-3">
+        // Phones: one day per row. Desktop: all 7 days side by side.
+        <div className="mx-auto grid max-w-2xl gap-3 lg:max-w-none lg:grid-cols-7 lg:items-start lg:gap-2">
           {days.map((d) => (
             <DayCard
               key={d}
@@ -184,17 +123,20 @@ function WeekView({ calendarOn }: { calendarOn: boolean }) {
               today={today}
               tasks={byDay.get(d) ?? []}
               onToggle={toggle}
+              onPartial={togglePartial}
               onReorder={reorder}
               onAdd={add}
               calendarSlot={
-                calendarOn && calendar ? (
-                  <DayEvents events={eventsByDay.get(d) ?? []} calendars={calendar.calendars} />
-                ) : null
+                calendarOn ? <DayEvents events={eventsByDay.get(d) ?? []} calendars={calendars} /> : null
               }
             />
           ))}
         </div>
       )}
+
+      <p className="mx-auto mt-4 max-w-2xl px-1 text-center text-xs text-ink-faint">
+        Tip: press and hold a checkbox to mark a task partly done.
+      </p>
     </>
   );
 }

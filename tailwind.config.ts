@@ -5,14 +5,16 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        cream: "#FFF6EE",
-        ink: { DEFAULT: "#2B211C", soft: "#6B5E57", faint: "#A3968F" },
-        line: "#F1E4D8",
-        todo: { DEFAULT: "#E4572E", text: "#C8441F", soft: "#FDE6DD" },
-        buy: { DEFAULT: "#0F7A6F", soft: "#DCF1EE" },
-        research: { DEFAULT: "#6741B0", soft: "#ECE4F8" },
-        notes: { DEFAULT: "#1F4E86", soft: "#DFE9F5" },
-        inbox: { DEFAULT: "#475467", soft: "#E9ECF0" },
+        // Fall palette: parchment, brick red, mustard, chestnut, charcoal, olive.
+        cream: "#F8F1E7",
+        ink: { DEFAULT: "#231B16", soft: "#6B5D52", faint: "#A39587" },
+        line: "#EADFD2",
+        todo: { DEFAULT: "#8E2C22", text: "#7A231B", soft: "#F5E1DC" },
+        buy: { DEFAULT: "#9C6B0E", soft: "#F8ECCF" },
+        research: { DEFAULT: "#7A4A2A", soft: "#F0E3D6" },
+        notes: { DEFAULT: "#2A2522", soft: "#E9E4DF" },
+        inbox: { DEFAULT: "#5F5A36", soft: "#ECEADC" },
+        partial: { DEFAULT: "#C08A1E", soft: "#FBF1D6" },
         danger: { DEFAULT: "#D92D20", soft: "#FDE3E1", text: "#B42318" },
       },
       fontFamily: {

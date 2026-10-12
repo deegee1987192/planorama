@@ -51,7 +51,7 @@ export function Segmented<T extends string>({
           role="radio"
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
-          className={`min-h-[40px] flex-1 rounded-full px-3 text-sm font-semibold transition ${
+          className={`min-h-[40px] flex-1 whitespace-nowrap rounded-full px-2 text-[13px] font-semibold transition sm:px-3 sm:text-sm ${
             value === o.value ? activeClass : "text-ink-soft"
           }`}
         >

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { GripVertical, Plus } from "lucide-react";
+import { Check, GripVertical, Plus } from "lucide-react";
 import {
   DndContext,
   KeyboardSensor,
@@ -31,13 +31,14 @@ interface DayCardProps {
   today: string;
   tasks: TaskSummary[];
   onToggle: (task: TaskSummary) => void;
+  onPartial: (task: TaskSummary) => void;
   onReorder: (date: string, orderedIds: string[]) => void;
   onAdd: (date: string, title: string) => Promise<void>;
   /** Calendar events for this day, shown above the tasks when the calendar is on. */
   calendarSlot?: React.ReactNode;
 }
 
-export function DayCard({ date, today, tasks, onToggle, onReorder, onAdd, calendarSlot }: DayCardProps) {
+export function DayCard({ date, today, tasks, onToggle, onPartial, onReorder, onAdd, calendarSlot }: DayCardProps) {
   const isToday = date === today;
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -55,10 +56,10 @@ export function DayCard({ date, today, tasks, onToggle, onReorder, onAdd, calend
 
   return (
     <section
-      className={`card px-2 pb-2 pt-3 ${isToday ? "ring-2 ring-todo" : ""}`}
+      className={`card flex min-w-0 flex-col px-2 pb-2 pt-3 lg:px-1.5 ${isToday ? "ring-2 ring-todo" : ""}`}
       aria-label={`${weekdayShort(date)} ${monthDay(date)}`}
     >
-      <div className="flex items-center gap-2 px-3 pb-1">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 pb-1 lg:px-2">
         <h2 className={`text-lg font-bold ${isToday ? "text-todo-text" : "text-ink"}`}>{weekdayShort(date)}</h2>
         <span className="text-sm font-medium text-ink-soft">{monthDay(date)}</span>
         {isToday && (
@@ -80,7 +81,7 @@ export function DayCard({ date, today, tasks, onToggle, onReorder, onAdd, calend
         <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
           <ul>
             {tasks.map((task) => (
-              <SortableTaskRow key={task.id} task={task} today={today} onToggle={onToggle} />
+              <SortableTaskRow key={task.id} task={task} today={today} onToggle={onToggle} onPartial={onPartial} />
             ))}
           </ul>
         </SortableContext>
@@ -95,10 +96,12 @@ function SortableTaskRow({
   task,
   today,
   onToggle,
+  onPartial,
 }: {
   task: TaskSummary;
   today: string;
   onToggle: (task: TaskSummary) => void;
+  onPartial: (task: TaskSummary) => void;
 }) {
   const router = useRouter();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
@@ -109,18 +112,25 @@ function SortableTaskRow({
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`relative flex items-start rounded-2xl ${isDragging ? "z-10 bg-white shadow-lg" : ""}`}
+      className={`relative flex items-start rounded-2xl transition-opacity duration-500 ${isDragging ? "z-10 bg-white shadow-lg" : ""} ${task.partial && !task.done ? "bg-partial-soft" : ""} ${task.done ? "opacity-60" : ""}`}
     >
-      <TaskCheckbox checked={task.done} onChange={() => onToggle(task)} label={`Mark "${task.title}" done`} />
+      <TaskCheckbox
+        checked={task.done}
+        partial={task.partial}
+        onChange={() => onToggle(task)}
+        onPartial={() => onPartial(task)}
+        label={`Mark "${task.title}" done`}
+      />
       <button
         type="button"
         onClick={() => router.push(`/task/${task.id}`)}
-        className="min-h-[44px] flex-1 py-2.5 text-left"
+        className="min-h-[44px] min-w-0 flex-1 py-2.5 text-left"
       >
-        <span className={`block text-[15px] leading-snug ${task.done ? "text-ink-faint line-through" : "text-ink"}`}>
+        <span className={`block break-words text-[15px] leading-snug lg:text-sm ${task.done ? "text-ink-faint line-through" : "text-ink"}`}>
           {task.title}
         </span>
         <TaskTags task={task} today={today} />
+        <TaskExtras task={task} />
       </button>
       <button
         type="button"
@@ -128,11 +138,40 @@ function SortableTaskRow({
         {...attributes}
         {...listeners}
         aria-label={`Reorder "${task.title}"`}
-        className="flex h-11 w-11 shrink-0 cursor-grab touch-none items-center justify-center text-ink-faint/70 active:cursor-grabbing"
+        className="flex h-11 w-11 shrink-0 cursor-grab touch-none items-center justify-center text-ink-faint/70 active:cursor-grabbing lg:w-6"
       >
         <GripVertical size={18} />
       </button>
     </li>
+  );
+}
+
+/** Subtasks and notes, in small print under the task title. */
+function TaskExtras({ task }: { task: TaskSummary }) {
+  if (!task.subtasks.length && !task.notes.trim()) return null;
+  return (
+    <div className="mt-1.5 space-y-0.5">
+      {task.subtasks.length > 0 && (
+        <ul className="space-y-0.5">
+          {task.subtasks.map((s) => (
+            <li key={s.id} className="flex items-start gap-1.5 text-[12.5px] leading-snug text-ink-soft">
+              <span
+                className={`mt-[3px] flex h-3 w-3 shrink-0 items-center justify-center rounded-full border ${
+                  s.done ? "border-ink-faint bg-ink-faint text-white" : "border-ink-faint"
+                }`}
+                aria-hidden="true"
+              >
+                {s.done && <Check size={8} strokeWidth={4} />}
+              </span>
+              <span className={s.done ? "text-ink-faint line-through" : ""}>{s.title}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {task.notes.trim() && (
+        <p className="line-clamp-2 whitespace-pre-line text-[12.5px] italic leading-snug text-ink-faint">{task.notes.trim()}</p>
+      )}
+    </div>
   );
 }
 

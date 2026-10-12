@@ -71,6 +71,24 @@ export function relativeDayLabel(iso: string, today = todayISO()): string {
   return dayLabel(iso);
 }
 
+/** "October 2026" */
+export function monthName(iso: string): string {
+  const d = toUTC(iso);
+  return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "long", year: "numeric" }).format(d);
+}
+
+/** Toronto calendar date (YYYY-MM-DD) of a timestamp. */
+export function dateOfTimestamp(ts: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(ts));
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
 /** "14:30:00" -> "2:30 PM" */
 export function formatTime(time: string): string {
   const [h, m] = time.split(":").map(Number);
