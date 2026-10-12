@@ -31,6 +31,7 @@ export function CaptureBar() {
   const [micSupported, setMicSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const recognition = useRef<SpeechRecognitionLike | null>(null);
+  const savingRef = useRef(false);
   const { refreshData } = useApp();
   const toast = useToast();
 
@@ -51,13 +52,21 @@ export function CaptureBar() {
     rec.interimResults = true;
     rec.continuous = false;
     const prefix = text.trim() ? `${text.trim()} ` : "";
+    let heard = "";
+    let failed = false;
     rec.onresult = (e) => {
       let transcript = "";
       for (let i = 0; i < e.results.length; i++) transcript += e.results[i][0].transcript;
+      heard = transcript;
       setText(prefix + transcript);
     };
-    rec.onend = () => setListening(false);
+    // When you stop talking (or tap stop), send what was heard automatically.
+    rec.onend = () => {
+      setListening(false);
+      if (!failed && heard.trim()) void save(prefix + heard);
+    };
     rec.onerror = (e) => {
+      failed = true;
       setListening(false);
       if (e.error === "not-allowed") toast.error("Microphone access is blocked");
     };
@@ -66,11 +75,20 @@ export function CaptureBar() {
     rec.start();
   }
 
-  async function submit(e: React.FormEvent) {
+  function submit(e: React.FormEvent) {
     e.preventDefault();
-    const value = text.trim();
-    if (!value || saving) return;
-    recognition.current?.stop();
+    if (recognition.current) {
+      // Sending by hand: stop listening without the automatic send.
+      recognition.current.onend = () => setListening(false);
+      recognition.current.stop();
+    }
+    void save(text);
+  }
+
+  async function save(raw: string) {
+    const value = raw.trim();
+    if (!value || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const result = await captureText(value);
@@ -92,6 +110,7 @@ export function CaptureBar() {
     } catch (err) {
       toast.error("Couldn't save that. Try again.", err);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
