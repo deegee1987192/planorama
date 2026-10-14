@@ -2,25 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, GripVertical, Plus } from "lucide-react";
-import {
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { Check, GripVertical, Plus, X } from "lucide-react";
+import { useDroppable } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { dayDropId, useDropTargetDate } from "./TaskBoard";
 import { monthDay, weekdayShort } from "@/lib/dates";
 import type { TaskSummary } from "@/lib/types";
 import { TaskCheckbox } from "./TaskCheckbox";
@@ -32,31 +18,26 @@ interface DayCardProps {
   tasks: TaskSummary[];
   onToggle: (task: TaskSummary) => void;
   onPartial: (task: TaskSummary) => void;
-  onReorder: (date: string, orderedIds: string[]) => void;
+  /** Removes crossed-off tasks from the day (they move to Done). */
+  onClear: (tasks: TaskSummary[]) => void;
   onAdd: (date: string, title: string) => Promise<void>;
   /** Calendar events for this day, shown above the tasks when the calendar is on. */
   calendarSlot?: React.ReactNode;
 }
 
-export function DayCard({ date, today, tasks, onToggle, onPartial, onReorder, onAdd, calendarSlot }: DayCardProps) {
+/** One day's tasks. Must be inside a <TaskBoard> (drag and drop across days). */
+export function DayCard({ date, today, tasks, onToggle, onPartial, onClear, onAdd, calendarSlot }: DayCardProps) {
   const isToday = date === today;
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
-  function handleDragEnd({ active, over }: DragEndEvent) {
-    if (!over || active.id === over.id) return;
-    const ids = tasks.map((t) => t.id);
-    const from = ids.indexOf(String(active.id));
-    const to = ids.indexOf(String(over.id));
-    if (from < 0 || to < 0) return;
-    onReorder(date, arrayMove(ids, from, to));
-  }
+  const { setNodeRef } = useDroppable({ id: dayDropId(date) });
+  const isDropTarget = useDropTargetDate() === date;
+  const crossedOff = tasks.filter((t) => t.done);
 
   return (
     <section
-      className={`card flex min-w-0 flex-col px-2 pb-2 pt-3 lg:px-1.5 ${isToday ? "ring-2 ring-todo" : ""}`}
+      ref={setNodeRef}
+      className={`card flex min-w-0 flex-col px-2 pb-2 pt-3 transition lg:px-1.5 ${isToday ? "ring-2 ring-todo" : ""} ${
+        isDropTarget ? "bg-todo-soft/60 ring-2 ring-todo/50" : ""
+      }`}
       aria-label={`${weekdayShort(date)} ${monthDay(date)}`}
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 pb-1 lg:px-2">
@@ -72,22 +53,35 @@ export function DayCard({ date, today, tasks, onToggle, onPartial, onReorder, on
 
       {calendarSlot}
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-        modifiers={[restrictToVerticalAxis, restrictToParentElement]}
-      >
-        <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-          <ul>
-            {tasks.map((task) => (
-              <SortableTaskRow key={task.id} task={task} today={today} onToggle={onToggle} onPartial={onPartial} />
-            ))}
-          </ul>
-        </SortableContext>
-      </DndContext>
+      <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+        <ul className="min-h-[8px]">
+          {tasks.map((task) => (
+            <SortableTaskRow
+              key={task.id}
+              task={task}
+              today={today}
+              onToggle={onToggle}
+              onPartial={onPartial}
+              onRemove={() => onClear([task])}
+            />
+          ))}
+        </ul>
+      </SortableContext>
 
-      <AddTaskRow date={date} onAdd={onAdd} />
+      <div className="flex flex-wrap items-center">
+        <div className="min-w-0 flex-1">
+          <AddTaskRow date={date} onAdd={onAdd} />
+        </div>
+        {crossedOff.length > 0 && (
+          <button
+            type="button"
+            onClick={() => onClear(crossedOff)}
+            className="flex min-h-[44px] items-center gap-1 rounded-2xl px-3 text-xs font-semibold text-ink-soft hover:bg-black/5"
+          >
+            <X size={14} /> Clear crossed off{crossedOff.length > 1 ? ` (${crossedOff.length})` : ""}
+          </button>
+        )}
+      </div>
     </section>
   );
 }
@@ -97,11 +91,13 @@ function SortableTaskRow({
   today,
   onToggle,
   onPartial,
+  onRemove,
 }: {
   task: TaskSummary;
   today: string;
   onToggle: (task: TaskSummary) => void;
   onPartial: (task: TaskSummary) => void;
+  onRemove: () => void;
 }) {
   const router = useRouter();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
@@ -112,7 +108,7 @@ function SortableTaskRow({
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`relative flex items-start rounded-2xl transition-opacity duration-500 ${isDragging ? "z-10 bg-white shadow-lg" : ""} ${task.partial && !task.done ? "bg-partial-soft" : ""} ${task.done ? "opacity-60" : ""}`}
+      className={`relative flex items-start rounded-2xl transition-opacity duration-500 ${isDragging ? "opacity-40" : ""} ${task.partial && !task.done ? "bg-partial-soft" : ""} ${task.done && !isDragging ? "opacity-70" : ""}`}
     >
       <TaskCheckbox
         checked={task.done}
@@ -132,16 +128,29 @@ function SortableTaskRow({
         <TaskTags task={task} today={today} />
         <TaskExtras task={task} />
       </button>
-      <button
-        type="button"
-        ref={setActivatorNodeRef}
-        {...attributes}
-        {...listeners}
-        aria-label={`Reorder "${task.title}"`}
-        className="flex h-11 w-11 shrink-0 cursor-grab touch-none items-center justify-center text-ink-faint/70 active:cursor-grabbing lg:w-6"
-      >
-        <GripVertical size={18} />
-      </button>
+      {task.done ? (
+        // Crossed off: an x to remove it from the day (it moves to Done).
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove "${task.title}"`}
+          title="Remove (moves to Done)"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-soft hover:bg-black/5 lg:w-6"
+        >
+          <X size={18} />
+        </button>
+      ) : (
+        <button
+          type="button"
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          aria-label={`Drag "${task.title}" to reorder or move to another day`}
+          className="flex h-11 w-11 shrink-0 cursor-grab touch-none items-center justify-center text-ink-faint/70 active:cursor-grabbing lg:w-6"
+        >
+          <GripVertical size={18} />
+        </button>
+      )}
     </li>
   );
 }

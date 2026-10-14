@@ -13,12 +13,12 @@ function sortSubtasks(tasks: TaskSummary[]): TaskSummary[] {
   return tasks;
 }
 
-/** Unfinished tasks planned between two dates (finished ones live under Done). */
+/** Tasks planned between two dates, including crossed-off ones you haven't removed yet. */
 export async function listTasksBetween(start: string, end: string): Promise<TaskSummary[]> {
   const { data, error } = await db()
     .from("tasks")
     .select(SUMMARY)
-    .eq("done", false)
+    .is("cleared_at", null)
     .gte("do_on", start)
     .lte("do_on", end)
     .order("sort_order")
@@ -27,23 +27,45 @@ export async function listTasksBetween(start: string, end: string): Promise<Task
   return sortSubtasks(data as TaskSummary[]);
 }
 
-/** Finished tasks, most recent first. They're deleted 7 days after completion. */
+/** Crossed-off tasks you've removed from their day, most recently removed first. */
 export async function listDoneTasks(): Promise<TaskSummary[]> {
   const { data, error } = await db()
     .from("tasks")
     .select(SUMMARY)
     .eq("done", true)
-    .order("done_at", { ascending: false });
+    .not("cleared_at", "is", null)
+    .order("cleared_at", { ascending: false });
   if (error) throw error;
   return sortSubtasks(data as TaskSummary[]);
 }
 
+/** Removed tasks are kept this long under Done, then deleted. */
 export const DONE_KEEP_DAYS = 7;
 
 export async function purgeOldDoneTasks(): Promise<void> {
   const cutoff = new Date(Date.now() - DONE_KEEP_DAYS * 24 * 60 * 60 * 1000).toISOString();
-  const { error } = await db().from("tasks").delete().eq("done", true).lt("done_at", cutoff);
+  const { error } = await db().from("tasks").delete().eq("done", true).lt("cleared_at", cutoff);
   if (error) throw error;
+}
+
+/** Removes crossed-off tasks from their days (they move to Done). */
+export async function clearTasks(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const { error } = await db().from("tasks").update({ cleared_at: new Date().toISOString() }).in("id", ids).eq("done", true);
+  if (error) throw error;
+}
+
+/** Puts removed tasks back on their days (still crossed off). */
+export async function unclearTasks(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const { error } = await db().from("tasks").update({ cleared_at: null }).in("id", ids);
+  if (error) throw error;
+}
+
+/** Moves a task to another day, saving the new order of that day. */
+export async function moveTaskToDay(id: string, doOn: string, orderedIds: string[]): Promise<void> {
+  await updateTask(id, { do_on: doOn, carried_over: false });
+  await reorderTasks(orderedIds);
 }
 
 /** Every unfinished task with a deadline, soonest first. */
@@ -125,7 +147,7 @@ export async function setTaskDone(task: Task, done: boolean): Promise<void> {
   await updateTask(task.id, {
     done,
     done_at: done ? new Date().toISOString() : null,
-    ...(done ? { partial: false } : {}),
+    ...(done ? { partial: false } : { cleared_at: null }),
   });
   if (done && task.repeat !== "none") await createNextRepeat(task);
 }

@@ -16,6 +16,8 @@ export interface Task {
   done_at: string | null;
   /** Started but not finished: still rolls over, shown with a tint. */
   partial: boolean;
+  /** Set when a crossed-off task is removed from its day (it then lives under Done). */
+  cleared_at: string | null;
   sort_order: number;
   carried_over: boolean;
   created_at: string;

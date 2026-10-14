@@ -11,7 +11,7 @@ import { DONE_KEEP_DAYS, listDoneTasks, setTaskDone, updateTask } from "@/lib/da
 import type { TaskSummary } from "@/lib/types";
 import { TaskCheckbox } from "./TaskCheckbox";
 
-/** Finished tasks from the last 7 days. Untick one to bring it back. */
+/** Crossed-off tasks you removed in the last 7 days. Untick one to bring it back. */
 export function DoneView() {
   const { today } = useApp();
   const toast = useToast();
@@ -31,7 +31,7 @@ export function DoneView() {
   const groups = useMemo(() => {
     const map = new Map<string, TaskSummary[]>();
     for (const t of tasks ?? []) {
-      const d = t.done_at ? dateOfTimestamp(t.done_at) : today;
+      const d = t.cleared_at ? dateOfTimestamp(t.cleared_at) : t.done_at ? dateOfTimestamp(t.done_at) : today;
       map.set(d, [...(map.get(d) ?? []), t]);
     }
     return [...map.entries()];
@@ -55,10 +55,10 @@ export function DoneView() {
   return (
     <>
       <p className="mb-3 px-1 text-sm text-ink-soft">
-        Finished tasks stay here for {DONE_KEEP_DAYS} days, then they&apos;re deleted automatically. Untick one to bring it back.
+        Crossed-off tasks you remove stay here for {DONE_KEEP_DAYS} days, then they&apos;re deleted automatically. Untick one to bring it back.
       </p>
       {!tasks.length ? (
-        <EmptyState icon={<CheckCircle2 size={32} />} title="Nothing finished yet" hint="Crossed-off tasks land here." />
+        <EmptyState icon={<CheckCircle2 size={32} />} title="Nothing removed yet" hint="Tap the x on a crossed-off task to move it here." />
       ) : (
         <div className="space-y-4">
           {groups.map(([date, list]) => {

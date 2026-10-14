@@ -1,21 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSyncedLoad } from "@/components/providers/AppProviders";
 import { useToast } from "@/components/providers/ToastProvider";
-import { createTask, listTasksBetween, reorderTasks, setTaskDone, setTaskPartial } from "@/lib/data/tasks";
+import {
+  clearTasks,
+  createTask,
+  listTasksBetween,
+  moveTaskToDay,
+  reorderTasks,
+  setTaskDone,
+  setTaskPartial,
+  unclearTasks,
+} from "@/lib/data/tasks";
+import { relativeDayLabel } from "@/lib/dates";
 import { fetchCalendarEvents } from "@/lib/data/calendar";
 import type { CalendarEvent, CalendarResponse } from "@/lib/calendar/types";
 import type { TaskSummary } from "@/lib/types";
 
-/** How long a crossed-off task stays visible before moving to Done. */
-const HIDE_DONE_AFTER_MS = 3000;
-
-/** Unfinished tasks for a date range, plus all the actions a day card needs. */
+/** Tasks for a date range (crossed-off ones stay until removed), plus every action a day card needs. */
 export function useDayTasks(start: string, end: string) {
   const toast = useToast();
   const [tasks, setTasks] = useState<TaskSummary[] | null>(null);
-  const hideTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
   const load = useCallback(async () => {
     try {
@@ -27,54 +33,31 @@ export function useDayTasks(start: string, end: string) {
 
   useSyncedLoad(load, [load]);
 
-  useEffect(() => {
-    const timers = hideTimers.current;
-    return () => timers.forEach(clearTimeout);
-  }, []);
-
   const byDay = useMemo(() => {
     const map = new Map<string, TaskSummary[]>();
     for (const t of tasks ?? []) {
       if (!t.do_on) continue;
       map.set(t.do_on, [...(map.get(t.do_on) ?? []), t]);
     }
+    for (const list of map.values()) list.sort((a, b) => a.sort_order - b.sort_order);
     return map;
   }, [tasks]);
+
+  const crossedOff = useMemo(() => (tasks ?? []).filter((t) => t.done), [tasks]);
 
   async function toggle(task: TaskSummary) {
     const done = !task.done;
     setTasks((prev) => prev?.map((t) => (t.id === task.id ? { ...t, done, partial: done ? false : t.partial } : t)) ?? null);
-    clearTimeout(hideTimers.current.get(task.id));
     try {
       await setTaskDone(task, done);
+      if (done && task.repeat !== "none") {
+        toast.show({ message: "Done. Next one scheduled." });
+        void load();
+      }
     } catch (e) {
       toast.error("Couldn't update task", e);
       void load();
-      return;
     }
-    if (!done) return;
-    toast.show({
-      message: task.repeat !== "none" ? "Done. Next one scheduled." : "Done. Moved to Done.",
-      actionLabel: "Undo",
-      onAction: async () => {
-        clearTimeout(hideTimers.current.get(task.id));
-        try {
-          await setTaskDone({ ...task, repeat: "none" }, false);
-        } catch (e) {
-          toast.error("Couldn't undo", e);
-        }
-        void load();
-      },
-    });
-    // Leave it crossed out for a moment, then move it out of the day.
-    hideTimers.current.set(
-      task.id,
-      setTimeout(() => {
-        hideTimers.current.delete(task.id);
-        setTasks((prev) => prev?.filter((t) => t.id !== task.id) ?? null);
-        if (task.repeat !== "none") void load();
-      }, HIDE_DONE_AFTER_MS),
-    );
   }
 
   async function togglePartial(task: TaskSummary) {
@@ -90,22 +73,59 @@ export function useDayTasks(start: string, end: string) {
     }
   }
 
+  /** Removes crossed-off tasks from their days; they move to Done (deleted after 7 days). */
+  async function clear(list: TaskSummary[]) {
+    const ids = list.filter((t) => t.done).map((t) => t.id);
+    if (!ids.length) return;
+    setTasks((prev) => prev?.filter((t) => !ids.includes(t.id)) ?? null);
+    try {
+      await clearTasks(ids);
+      toast.show({
+        message: ids.length === 1 ? "Removed. It's under Done for 7 days." : `Removed ${ids.length} tasks. They're under Done for 7 days.`,
+        actionLabel: "Undo",
+        onAction: async () => {
+          try {
+            await unclearTasks(ids);
+          } catch (e) {
+            toast.error("Couldn't undo", e);
+          }
+          void load();
+        },
+      });
+    } catch (e) {
+      toast.error("Couldn't remove", e);
+      void load();
+    }
+  }
+
   async function reorder(date: string, orderedIds: string[]) {
-    setTasks((prev) => {
-      if (!prev) return prev;
-      const others = prev.filter((t) => t.do_on !== date);
-      const dayTasks = orderedIds
-        .map((id, i) => {
-          const t = prev.find((x) => x.id === id);
-          return t ? { ...t, sort_order: i } : undefined;
-        })
-        .filter((t): t is TaskSummary => Boolean(t));
-      return [...others, ...dayTasks];
-    });
+    setTasks((prev) => prev?.map((t) => (t.do_on === date && orderedIds.includes(t.id) ? { ...t, sort_order: orderedIds.indexOf(t.id) } : t)) ?? null);
     try {
       await reorderTasks(orderedIds);
     } catch (e) {
       toast.error("Couldn't save the new order", e);
+      void load();
+    }
+  }
+
+  /** Moves a task to another day (dropped there), keeping the order it was dropped in. */
+  async function move(task: TaskSummary, toDate: string, orderedIds: string[]) {
+    setTasks((prev) => {
+      if (!prev) return prev;
+      const inRange = prev.some((t) => t.do_on === toDate) || (toDate >= start && toDate <= end);
+      return prev
+        .filter((t) => inRange || t.id !== task.id)
+        .map((t) => {
+          if (t.id === task.id) return { ...t, do_on: toDate, carried_over: false, sort_order: orderedIds.indexOf(t.id) };
+          if (t.do_on === toDate && orderedIds.includes(t.id)) return { ...t, sort_order: orderedIds.indexOf(t.id) };
+          return t;
+        });
+    });
+    try {
+      await moveTaskToDay(task.id, toDate, orderedIds);
+      toast.show({ message: `Moved to ${relativeDayLabel(toDate)}` });
+    } catch (e) {
+      toast.error("Couldn't move task", e);
       void load();
     }
   }
@@ -119,7 +139,7 @@ export function useDayTasks(start: string, end: string) {
     }
   }
 
-  return { tasks, byDay, load, toggle, togglePartial, reorder, add };
+  return { tasks, byDay, crossedOff, load, toggle, togglePartial, clear, reorder, move, add };
 }
 
 /** Read-only calendar feed events for a date range, when the calendar is switched on. */

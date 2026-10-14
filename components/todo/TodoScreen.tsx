@@ -2,13 +2,14 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, CalendarOff, ChevronLeft, ChevronRight, UserRound } from "lucide-react";
+import { CalendarDays, CalendarOff, ChevronLeft, ChevronRight, UserRound, X } from "lucide-react";
 import { useApp } from "@/components/providers/AppProviders";
 import { LoadingCards, PageHeader, Segmented } from "@/components/ui";
 import { addDays, dateRange, monthDay } from "@/lib/dates";
 import { useStoredBoolean } from "@/lib/use-local-storage";
 import { DayCard } from "./DayCard";
 import { DayEvents } from "./DayEvents";
+import { TaskBoard } from "./TaskBoard";
 import { DeadlinesView } from "./DeadlinesView";
 import { DoneView } from "./DoneView";
 import { MonthView } from "./MonthView";
@@ -76,7 +77,7 @@ function WeekView({ calendarOn }: { calendarOn: boolean }) {
   const days = useMemo(() => dateRange(start, 7), [start]);
   const end = days[6];
 
-  const { tasks, byDay, toggle, togglePartial, reorder, add } = useDayTasks(start, end);
+  const { tasks, byDay, crossedOff, toggle, togglePartial, clear, reorder, move, add } = useDayTasks(start, end);
   const { calendars, eventsByDay } = useCalendarEvents(calendarOn, start, end);
 
   return (
@@ -114,28 +115,39 @@ function WeekView({ calendarOn }: { calendarOn: boolean }) {
       {tasks === null ? (
         <LoadingCards count={4} />
       ) : (
-        // Phones: one day per row. Desktop: all 7 days side by side.
-        <div className="mx-auto grid max-w-2xl gap-3 lg:max-w-none lg:grid-cols-7 lg:items-start lg:gap-2">
-          {days.map((d) => (
-            <DayCard
-              key={d}
-              date={d}
-              today={today}
-              tasks={byDay.get(d) ?? []}
-              onToggle={toggle}
-              onPartial={togglePartial}
-              onReorder={reorder}
-              onAdd={add}
-              calendarSlot={
-                calendarOn ? <DayEvents events={eventsByDay.get(d) ?? []} calendars={calendars} /> : null
-              }
-            />
-          ))}
-        </div>
+        <>
+          {crossedOff.length > 0 && (
+            <div className="mx-auto mb-3 flex max-w-2xl justify-end lg:max-w-none">
+              <button type="button" onClick={() => clear(crossedOff)} className="btn bg-white px-4 text-ink-soft shadow-card">
+                <X size={16} /> Remove all crossed off ({crossedOff.length})
+              </button>
+            </div>
+          )}
+          <TaskBoard byDay={byDay} onReorder={reorder} onMove={move}>
+            {/* Phones: one day per row. Desktop: all 7 days side by side. */}
+            <div className="mx-auto grid max-w-2xl gap-3 lg:max-w-none lg:grid-cols-7 lg:items-start lg:gap-2">
+              {days.map((d) => (
+                <DayCard
+                  key={d}
+                  date={d}
+                  today={today}
+                  tasks={byDay.get(d) ?? []}
+                  onToggle={toggle}
+                  onPartial={togglePartial}
+                  onClear={clear}
+                  onAdd={add}
+                  calendarSlot={
+                    calendarOn ? <DayEvents events={eventsByDay.get(d) ?? []} calendars={calendars} /> : null
+                  }
+                />
+              ))}
+            </div>
+          </TaskBoard>
+        </>
       )}
 
       <p className="mx-auto mt-4 max-w-2xl px-1 text-center text-xs text-ink-faint">
-        Tip: press and hold a checkbox to mark a task partly done.
+        Tips: drag the dotted handle to move a task to another day. Press and hold a checkbox to mark it partly done.
       </p>
     </>
   );
