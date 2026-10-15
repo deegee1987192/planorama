@@ -147,7 +147,7 @@ function WeekView({ calendarOn }: { calendarOn: boolean }) {
       )}
 
       <p className="mx-auto mt-4 max-w-2xl px-1 text-center text-xs text-ink-faint">
-        Tips: drag the dotted handle to move a task to another day. Press and hold a checkbox to mark it partly done.
+        Tips: tap the half circle to mark a task partly done. Drag the dotted handle to move it to another day.
       </p>
     </>
   );

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, GripVertical, Plus, X } from "lucide-react";
+import { Check, Contrast, GripVertical, Plus, X } from "lucide-react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -128,6 +128,21 @@ function SortableTaskRow({
         <TaskTags task={task} today={today} />
         <TaskExtras task={task} />
       </button>
+      {!task.done && (
+        // One tap: partly done (half-filled circle), tap again to undo.
+        <button
+          type="button"
+          onClick={() => onPartial(task)}
+          aria-pressed={task.partial}
+          aria-label={task.partial ? `"${task.title}" is partly done. Tap to undo.` : `Mark "${task.title}" partly done`}
+          title={task.partial ? "Partly done (tap to undo)" : "Mark partly done"}
+          className={`flex h-11 w-9 shrink-0 items-center justify-center rounded-full transition hover:bg-black/5 lg:w-6 ${
+            task.partial ? "text-partial" : "text-ink-faint/60"
+          }`}
+        >
+          <Contrast size={18} strokeWidth={task.partial ? 2.5 : 2} />
+        </button>
+      )}
       {task.done ? (
         // Crossed off: an x to remove it from the day (it moves to Done).
         <button
