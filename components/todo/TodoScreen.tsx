@@ -77,7 +77,7 @@ function WeekView({ calendarOn }: { calendarOn: boolean }) {
   const days = useMemo(() => dateRange(start, 7), [start]);
   const end = days[6];
 
-  const { tasks, byDay, crossedOff, toggle, togglePartial, clear, reorder, move, add } = useDayTasks(start, end);
+  const { tasks, byDay, crossedOff, toggle, togglePartial, clear, remove, reorder, move, add } = useDayTasks(start, end);
   const { calendars, eventsByDay } = useCalendarEvents(calendarOn, start, end);
 
   return (
@@ -135,6 +135,7 @@ function WeekView({ calendarOn }: { calendarOn: boolean }) {
                   onToggle={toggle}
                   onPartial={togglePartial}
                   onClear={clear}
+                  onRemove={remove}
                   onAdd={add}
                   calendarSlot={
                     calendarOn ? <DayEvents events={eventsByDay.get(d) ?? []} calendars={calendars} /> : null
@@ -147,7 +148,7 @@ function WeekView({ calendarOn }: { calendarOn: boolean }) {
       )}
 
       <p className="mx-auto mt-4 max-w-2xl px-1 text-center text-xs text-ink-faint">
-        Tips: tap the half circle to mark a task partly done. Drag the dotted handle to move it to another day.
+        Tips: swipe a task left (or hover on a laptop) for Partly done and Remove. Drag the dotted handle to move it to another day.
       </p>
     </>
   );

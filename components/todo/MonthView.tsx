@@ -35,7 +35,7 @@ export function MonthView({ calendarOn }: { calendarOn: boolean }) {
   const cells = useMemo(() => dateRange(gridStart, 42), [gridStart]);
   const gridEnd = cells[41];
 
-  const { tasks, byDay, toggle, togglePartial, clear, reorder, move, add } = useDayTasks(gridStart, gridEnd);
+  const { tasks, byDay, toggle, togglePartial, clear, remove, reorder, move, add } = useDayTasks(gridStart, gridEnd);
   const { calendars, eventsByDay } = useCalendarEvents(calendarOn, gridStart, gridEnd);
 
   // Deadline flags on the grid.
@@ -115,6 +115,7 @@ export function MonthView({ calendarOn }: { calendarOn: boolean }) {
           onToggle={toggle}
           onPartial={togglePartial}
           onClear={clear}
+                  onRemove={remove}
           onAdd={add}
           calendarSlot={calendarOn ? <DayEvents events={eventsByDay.get(selected) ?? []} calendars={calendars} /> : null}
         />

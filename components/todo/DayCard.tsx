@@ -1,16 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Check, Contrast, GripVertical, Plus, X } from "lucide-react";
+import { Check, Plus, X } from "lucide-react";
 import { useDroppable } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { dayDropId, useDropTargetDate } from "./TaskBoard";
 import { monthDay, weekdayShort } from "@/lib/dates";
 import type { TaskSummary } from "@/lib/types";
-import { TaskCheckbox } from "./TaskCheckbox";
-import { TaskTags } from "./TaskTags";
+import { TaskRow } from "./TaskRow";
 
 interface DayCardProps {
   date: string;
@@ -20,13 +17,15 @@ interface DayCardProps {
   onPartial: (task: TaskSummary) => void;
   /** Removes crossed-off tasks from the day (they move to Done). */
   onClear: (tasks: TaskSummary[]) => void;
+  /** Removes one task, finished or not (it moves to Done). */
+  onRemove: (task: TaskSummary) => void;
   onAdd: (date: string, title: string) => Promise<void>;
   /** Calendar events for this day, shown above the tasks when the calendar is on. */
   calendarSlot?: React.ReactNode;
 }
 
 /** One day's tasks. Must be inside a <TaskBoard> (drag and drop across days). */
-export function DayCard({ date, today, tasks, onToggle, onPartial, onClear, onAdd, calendarSlot }: DayCardProps) {
+export function DayCard({ date, today, tasks, onToggle, onPartial, onClear, onRemove, onAdd, calendarSlot }: DayCardProps) {
   const isToday = date === today;
   const { setNodeRef } = useDroppable({ id: dayDropId(date) });
   const isDropTarget = useDropTargetDate() === date;
@@ -56,13 +55,14 @@ export function DayCard({ date, today, tasks, onToggle, onPartial, onClear, onAd
       <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
         <ul className="min-h-[8px]">
           {tasks.map((task) => (
-            <SortableTaskRow
+            <TaskRow
               key={task.id}
               task={task}
               today={today}
               onToggle={onToggle}
               onPartial={onPartial}
-              onRemove={() => onClear([task])}
+              onRemove={onRemove}
+              extras={<TaskExtras task={task} />}
             />
           ))}
         </ul>
@@ -83,90 +83,6 @@ export function DayCard({ date, today, tasks, onToggle, onPartial, onClear, onAd
         )}
       </div>
     </section>
-  );
-}
-
-function SortableTaskRow({
-  task,
-  today,
-  onToggle,
-  onPartial,
-  onRemove,
-}: {
-  task: TaskSummary;
-  today: string;
-  onToggle: (task: TaskSummary) => void;
-  onPartial: (task: TaskSummary) => void;
-  onRemove: () => void;
-}) {
-  const router = useRouter();
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
-    id: task.id,
-  });
-
-  return (
-    <li
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`relative flex items-start rounded-2xl transition-opacity duration-500 ${isDragging ? "opacity-40" : ""} ${task.partial && !task.done ? "bg-partial-soft" : ""} ${task.done && !isDragging ? "opacity-70" : ""}`}
-    >
-      <TaskCheckbox
-        checked={task.done}
-        partial={task.partial}
-        onChange={() => onToggle(task)}
-        onPartial={() => onPartial(task)}
-        label={`Mark "${task.title}" done`}
-      />
-      <button
-        type="button"
-        onClick={() => router.push(`/task/${task.id}`)}
-        className="min-h-[44px] min-w-0 flex-1 py-2.5 text-left"
-      >
-        <span className={`block break-words text-[15px] leading-snug lg:text-sm ${task.done ? "text-ink-faint line-through" : "text-ink"}`}>
-          {task.title}
-        </span>
-        <TaskTags task={task} today={today} />
-        <TaskExtras task={task} />
-      </button>
-      {!task.done && (
-        // One tap: partly done (half-filled circle), tap again to undo.
-        <button
-          type="button"
-          onClick={() => onPartial(task)}
-          aria-pressed={task.partial}
-          aria-label={task.partial ? `"${task.title}" is partly done. Tap to undo.` : `Mark "${task.title}" partly done`}
-          title={task.partial ? "Partly done (tap to undo)" : "Mark partly done"}
-          className={`flex h-11 w-9 shrink-0 items-center justify-center rounded-full transition hover:bg-black/5 lg:w-6 ${
-            task.partial ? "text-partial" : "text-ink-faint/60"
-          }`}
-        >
-          <Contrast size={18} strokeWidth={task.partial ? 2.5 : 2} />
-        </button>
-      )}
-      {task.done ? (
-        // Crossed off: an x to remove it from the day (it moves to Done).
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label={`Remove "${task.title}"`}
-          title="Remove (moves to Done)"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-soft hover:bg-black/5 lg:w-6"
-        >
-          <X size={18} />
-        </button>
-      ) : (
-        <button
-          type="button"
-          ref={setActivatorNodeRef}
-          {...attributes}
-          {...listeners}
-          aria-label={`Drag "${task.title}" to reorder or move to another day`}
-          className="flex h-11 w-11 shrink-0 cursor-grab touch-none items-center justify-center text-ink-faint/70 active:cursor-grabbing lg:w-6"
-        >
-          <GripVertical size={18} />
-        </button>
-      )}
-    </li>
   );
 }
 

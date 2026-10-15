@@ -98,6 +98,35 @@ export function useDayTasks(start: string, end: string) {
     }
   }
 
+  /**
+   * Removes one task from its day, finished or not (swipe > Remove, or the x).
+   * It's marked done and moves to Done (a repeating task schedules its next one).
+   */
+  async function remove(task: TaskSummary) {
+    setTasks((prev) => prev?.filter((t) => t.id !== task.id) ?? null);
+    try {
+      if (!task.done) await setTaskDone(task, true);
+      await clearTasks([task.id]);
+      toast.show({
+        message: "Removed. It's under Done for 7 days.",
+        actionLabel: "Undo",
+        onAction: async () => {
+          try {
+            if (task.done) await unclearTasks([task.id]);
+            else await setTaskDone({ ...task, repeat: "none" }, false);
+          } catch (e) {
+            toast.error("Couldn't undo", e);
+          }
+          void load();
+        },
+      });
+      if (!task.done && task.repeat !== "none") void load();
+    } catch (e) {
+      toast.error("Couldn't remove", e);
+      void load();
+    }
+  }
+
   async function reorder(date: string, orderedIds: string[]) {
     setTasks((prev) => prev?.map((t) => (t.do_on === date && orderedIds.includes(t.id) ? { ...t, sort_order: orderedIds.indexOf(t.id) } : t)) ?? null);
     try {
@@ -139,7 +168,7 @@ export function useDayTasks(start: string, end: string) {
     }
   }
 
-  return { tasks, byDay, crossedOff, load, toggle, togglePartial, clear, reorder, move, add };
+  return { tasks, byDay, crossedOff, load, toggle, togglePartial, clear, remove, reorder, move, add };
 }
 
 /** Read-only calendar feed events for a date range, when the calendar is switched on. */
