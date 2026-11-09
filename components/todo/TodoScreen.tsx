@@ -73,12 +73,34 @@ function WeekView({ calendarOn }: { calendarOn: boolean }) {
   const { today } = useApp();
   const [weekOffset, setWeekOffset] = useState(0);
 
+  // Rolling two weeks: today is always the first (top-left) day, so the view shifts by a day every morning.
   const start = addDays(today, weekOffset * 7);
-  const days = useMemo(() => dateRange(start, 7), [start]);
-  const end = days[6];
+  const days = useMemo(() => dateRange(start, 14), [start]);
+  const firstWeek = days.slice(0, 7);
+  const secondWeek = days.slice(7);
+  const end = days[13];
 
   const { tasks, byDay, crossedOff, toggle, togglePartial, clear, remove, reorder, move, add } = useDayTasks(start, end);
   const { calendars, eventsByDay } = useCalendarEvents(calendarOn, start, end);
+
+  const renderDays = (list: string[]) =>
+    list.map((d) => (
+      <DayCard
+        key={d}
+        date={d}
+        today={today}
+        tasks={byDay.get(d) ?? []}
+        onToggle={toggle}
+        onPartial={togglePartial}
+        onClear={clear}
+        onRemove={remove}
+        onAdd={add}
+        calendarSlot={calendarOn ? <DayEvents events={eventsByDay.get(d) ?? []} calendars={calendars} /> : null}
+      />
+    ));
+
+  // Phones: one day per row. Desktop: 7 days side by side.
+  const gridClass = "grid gap-3 lg:grid-cols-7 lg:items-start lg:gap-2";
 
   return (
     <>
@@ -98,7 +120,7 @@ function WeekView({ calendarOn }: { calendarOn: boolean }) {
           disabled={weekOffset === 0}
         >
           <span className="block font-display text-base font-semibold">
-            {weekOffset === 0 ? "This week" : `${monthDay(start)} – ${monthDay(end)}`}
+            {weekOffset === 0 ? "Next two weeks" : `${monthDay(start)} – ${monthDay(end)}`}
           </span>
           {weekOffset !== 0 && <span className="block text-xs font-medium text-todo-text">Back to today</span>}
         </button>
@@ -124,24 +146,15 @@ function WeekView({ calendarOn }: { calendarOn: boolean }) {
             </div>
           )}
           <TaskBoard byDay={byDay} onReorder={reorder} onMove={move}>
-            {/* Phones: one day per row. Desktop: all 7 days side by side. */}
-            <div className="mx-auto grid max-w-2xl gap-3 lg:max-w-none lg:grid-cols-7 lg:items-start lg:gap-2">
-              {days.map((d) => (
-                <DayCard
-                  key={d}
-                  date={d}
-                  today={today}
-                  tasks={byDay.get(d) ?? []}
-                  onToggle={toggle}
-                  onPartial={togglePartial}
-                  onClear={clear}
-                  onRemove={remove}
-                  onAdd={add}
-                  calendarSlot={
-                    calendarOn ? <DayEvents events={eventsByDay.get(d) ?? []} calendars={calendars} /> : null
-                  }
-                />
-              ))}
+            <div className="mx-auto max-w-2xl lg:max-w-none">
+              <WeekHeading title={weekOffset === 0 ? "This week" : "Week 1"} from={firstWeek[0]} to={firstWeek[6]} />
+              <div className={gridClass}>{renderDays(firstWeek)}</div>
+
+              {/* Second week sits in its own darker panel so the two weeks read as separate. */}
+              <div className="mt-6 rounded-[24px] bg-[#E6D8C6] p-2 ring-1 ring-ink/15 lg:p-2.5">
+                <WeekHeading title={weekOffset === 0 ? "Next week" : "Week 2"} from={secondWeek[0]} to={secondWeek[6]} />
+                <div className={gridClass}>{renderDays(secondWeek)}</div>
+              </div>
             </div>
           </TaskBoard>
         </>
@@ -151,5 +164,16 @@ function WeekView({ calendarOn }: { calendarOn: boolean }) {
         Tips: swipe a task left (or hover on a laptop) for Partly done and Remove. Drag the dotted handle to move it to another day.
       </p>
     </>
+  );
+}
+
+function WeekHeading({ title, from, to }: { title: string; from: string; to: string }) {
+  return (
+    <div className="flex items-baseline gap-2 px-2 pb-2">
+      <h2 className="font-display text-base font-semibold text-ink">{title}</h2>
+      <span className="text-xs font-medium text-ink-soft">
+        {monthDay(from)} – {monthDay(to)}
+      </span>
+    </div>
   );
 }
