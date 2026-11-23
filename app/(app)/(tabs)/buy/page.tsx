@@ -9,6 +9,7 @@ import {
   createBuyItem,
   createBuyList,
   deleteBuyItem,
+  deleteBuyItems,
   deleteBuyList,
   listBuyItems,
   listBuyLists,
@@ -107,6 +108,19 @@ export default function BuyPage() {
     }
   }
 
+  async function clearCrossedOff(list: BuyList) {
+    const ids = items.filter((i) => i.list_id === list.id && i.done).map((i) => i.id);
+    if (!ids.length) return;
+    if (!window.confirm(`Delete ${ids.length} crossed-off item${ids.length === 1 ? "" : "s"} from "${list.name}"?`)) return;
+    setItems((prev) => prev.filter((i) => !ids.includes(i.id)));
+    try {
+      await deleteBuyItems(ids);
+    } catch (e) {
+      toast.error("Couldn't delete items", e);
+      void load();
+    }
+  }
+
   return (
     <>
       <PageHeader title="To Buy" colorClass="text-buy">
@@ -171,10 +185,29 @@ export default function BuyPage() {
                           </span>
                           {item.note && <span className="mt-0.5 block text-[13px] text-ink-soft">{item.note}</span>}
                         </button>
+                        {item.done && (
+                          <button
+                            type="button"
+                            onClick={() => removeItem(item)}
+                            className="flex h-11 w-11 shrink-0 items-center justify-center text-ink-faint hover:text-danger-text"
+                            aria-label={`Delete "${item.title}"`}
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
                       </li>
                     ))}
                   </ul>
                   <QuickAdd placeholder="Add item" onAdd={(title) => addItem(list.id, title)} />
+                  {listItems.some((i) => i.done) && (
+                    <button
+                      type="button"
+                      onClick={() => clearCrossedOff(list)}
+                      className="ml-1 mt-1 flex min-h-[44px] items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-danger-text hover:bg-black/5"
+                    >
+                      <Trash2 size={16} /> Delete all crossed off ({listItems.filter((i) => i.done).length})
+                    </button>
+                  )}
                 </section>
               );
             })}

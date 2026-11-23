@@ -5,7 +5,7 @@ import { Plus, Telescope, Trash2 } from "lucide-react";
 import { useSyncedLoad } from "@/components/providers/AppProviders";
 import { useToast } from "@/components/providers/ToastProvider";
 import { EmptyState, LoadingCards, PageHeader, Segmented, Sheet } from "@/components/ui";
-import { createResearch, deleteResearch, listResearch, updateResearch } from "@/lib/data/research";
+import { createResearch, deleteResearch, deleteResearchItems, listResearch, updateResearch } from "@/lib/data/research";
 import type { ResearchItem, ResearchStatus } from "@/lib/types";
 
 const STATUS: Record<ResearchStatus, { label: string; className: string }> = {
@@ -57,6 +57,29 @@ export default function ResearchPage() {
     }
   }
 
+  async function removeNow(item: ResearchItem) {
+    setItems((prev) => (prev ?? []).filter((i) => i.id !== item.id));
+    try {
+      await deleteResearch(item.id);
+    } catch (e) {
+      toast.error("Couldn't delete", e);
+      void load();
+    }
+  }
+
+  async function clearDone() {
+    const ids = (items ?? []).filter((i) => i.status === "done").map((i) => i.id);
+    if (!ids.length) return;
+    if (!window.confirm(`Delete ${ids.length} done item${ids.length === 1 ? "" : "s"}?`)) return;
+    setItems((prev) => (prev ?? []).filter((i) => !ids.includes(i.id)));
+    try {
+      await deleteResearchItems(ids);
+    } catch (e) {
+      toast.error("Couldn't delete", e);
+      void load();
+    }
+  }
+
   return (
     <>
       <PageHeader title="Research" colorClass="text-research">
@@ -86,21 +109,48 @@ export default function ResearchPage() {
           hint={filter === "open" ? "Add things you want to research." : undefined}
         />
       ) : (
-        <ul className="space-y-3">
+        <>
+          {filter === "done" && (
+            <button
+              type="button"
+              onClick={clearDone}
+              className="mb-3 flex min-h-[44px] items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-danger-text hover:bg-black/5"
+            >
+              <Trash2 size={16} /> Delete all done ({visible.length})
+            </button>
+          )}
+          <ul className="space-y-3">
           {visible.map((item) => (
-            <li key={item.id}>
-              <button type="button" onClick={() => setEditing(item)} className="card block w-full p-4 text-left">
+            <li key={item.id} className="relative">
+              <button
+                type="button"
+                onClick={() => setEditing(item)}
+                className={`card block w-full p-4 text-left ${item.status === "done" ? "pb-12" : ""}`}
+              >
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="text-[17px] font-bold leading-snug">{item.title}</h2>
+                  <h2 className={`text-[17px] font-bold leading-snug ${item.status === "done" ? "text-ink-faint line-through" : ""}`}>
+                    {item.title}
+                  </h2>
                   <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS[item.status].className}`}>
                     {STATUS[item.status].label}
                   </span>
                 </div>
                 {item.notes && <p className="mt-1.5 line-clamp-3 whitespace-pre-line text-sm text-ink-soft">{item.notes}</p>}
               </button>
+              {item.status === "done" && (
+                <button
+                  type="button"
+                  onClick={() => removeNow(item)}
+                  className="absolute bottom-1 right-1 flex h-11 w-11 items-center justify-center rounded-lg text-ink-faint hover:text-danger-text"
+                  aria-label={`Delete "${item.title}"`}
+                >
+                  <Trash2 size={18} />
+                </button>
+              )}
             </li>
           ))}
-        </ul>
+          </ul>
+        </>
       )}
 
       <Sheet open={editing !== null} onClose={() => setEditing(null)} title={editing === "new" ? "New research" : "Edit research"}>

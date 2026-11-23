@@ -28,3 +28,9 @@ export async function deleteResearch(id: string): Promise<void> {
   const { error } = await db().from("research_items").delete().eq("id", id);
   if (error) throw error;
 }
+
+export async function deleteResearchItems(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const { error } = await db().from("research_items").delete().in("id", ids);
+  if (error) throw error;
+}

@@ -63,3 +63,9 @@ export async function deleteBuyItem(id: string): Promise<void> {
   const { error } = await db().from("buy_items").delete().eq("id", id);
   if (error) throw error;
 }
+
+export async function deleteBuyItems(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const { error } = await db().from("buy_items").delete().in("id", ids);
+  if (error) throw error;
+}
