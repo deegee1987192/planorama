@@ -3,13 +3,15 @@
 @tailwind utilities;
 
 :root {
+  /* Headings use Nunito too (v1 spec). */
+  --font-display: var(--font-body);
   color-scheme: light;
 }
 
 html,
 body {
-  background: #f8f1e7;
-  color: #231b16;
+  background: #fff8f1;
+  color: #2a2320;
   -webkit-tap-highlight-color: transparent;
 }
 

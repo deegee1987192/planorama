@@ -5,11 +5,12 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Fall palette: parchment, brick red, mustard, chestnut, charcoal, olive.
-        cream: "#F8F1E7",
-        ink: { DEFAULT: "#231B16", soft: "#6B5D52", faint: "#A39587" },
+        // v1 palette: cream and dark ink (spec), with the fall accents per area. Goal colours: lib/goal-colours.ts.
+        cream: "#FFF8F1",
+        ink: { DEFAULT: "#2A2320", soft: "#6B5D52", faint: "#A39587" },
         line: "#EADFD2",
         todo: { DEFAULT: "#8E2C22", text: "#7A231B", soft: "#F5E1DC" },
+        goals: { DEFAULT: "#E4572E", text: "#B5401F", soft: "#FCE5DC" },
         buy: { DEFAULT: "#9C6B0E", soft: "#F8ECCF" },
         research: { DEFAULT: "#7A4A2A", soft: "#F0E3D6" },
         notes: { DEFAULT: "#2A2522", soft: "#E9E4DF" },

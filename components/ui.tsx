@@ -1,7 +1,46 @@
 "use client";
 
 import { useEffect } from "react";
-import { X } from "lucide-react";
+import Link from "next/link";
+import { Inbox, Sparkles, X } from "lucide-react";
+import { useApp } from "@/components/providers/AppProviders";
+
+/** Opens the Inbox (captured items waiting to be sorted), with a count badge. */
+export function InboxButton() {
+  const { inboxCount } = useApp();
+  return (
+    <Link
+      href="/inbox"
+      aria-label={inboxCount > 0 ? `Inbox, ${inboxCount} waiting` : "Inbox"}
+      className="icon-btn relative bg-white text-ink-soft shadow-card"
+    >
+      <Inbox size={18} />
+      {inboxCount > 0 && (
+        <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-todo px-1 text-[10px] font-bold text-white">
+          {inboxCount > 99 ? "99+" : inboxCount}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+/** Placeholder for the v3 Ask button. */
+export function AskSoonButton() {
+  return (
+    <button
+      type="button"
+      disabled
+      title="Ask is coming soon"
+      aria-label="Ask (coming soon)"
+      className="btn cursor-default bg-white px-3 text-ink-faint/70 shadow-card disabled:opacity-60"
+    >
+      <Sparkles size={16} />
+      <span className="hidden sm:inline">
+        Ask <span className="text-[11px] font-semibold">soon</span>
+      </span>
+    </button>
+  );
+}
 
 /** Screen title row used by every tab. */
 export function PageHeader({

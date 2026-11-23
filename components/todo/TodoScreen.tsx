@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CalendarDays, CalendarOff, ChevronLeft, ChevronRight, UserRound, X } from "lucide-react";
 import { useApp } from "@/components/providers/AppProviders";
-import { LoadingCards, PageHeader, Segmented } from "@/components/ui";
+import { AskSoonButton, InboxButton, LoadingCards, PageHeader, Segmented } from "@/components/ui";
 import { addDays, dateRange, monthDay } from "@/lib/dates";
 import { useStoredBoolean } from "@/lib/use-local-storage";
 import { DayCard } from "./DayCard";
@@ -24,7 +24,9 @@ export function TodoScreen() {
 
   return (
     <>
-      <PageHeader title="To-Do" colorClass="text-todo-text">
+      <PageHeader title="Today" colorClass="text-todo-text">
+        <AskSoonButton />
+        <InboxButton />
         <button
           type="button"
           onClick={() => setCalendarOn(!calendarOn)}
@@ -32,7 +34,7 @@ export function TodoScreen() {
           className={`btn px-3 ${calendarOn ? "bg-todo-soft text-todo-text" : "bg-white text-ink-soft shadow-card"}`}
         >
           {calendarOn ? <CalendarDays size={18} /> : <CalendarOff size={18} />}
-          Calendar {calendarOn ? "on" : "off"}
+          <span className="hidden sm:inline">Calendar</span> {calendarOn ? "on" : "off"}
         </button>
         <Link href="/account" aria-label="Account" className="icon-btn bg-white text-ink-soft shadow-card">
           <UserRound size={18} />
