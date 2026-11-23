@@ -7,6 +7,15 @@ const PUBLIC_PATHS = ["/login", "/auth"];
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
+  // Without these the Supabase client throws and Vercel shows "Routing Middleware failed".
+  // Say what's wrong instead (usually: the variables aren't ticked for this Vercel environment).
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return new NextResponse(
+      "Planorama setup: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are not set for this Vercel environment (Production / Preview). Add them in Vercel > Settings > Environment Variables, then redeploy.",
+      { status: 500, headers: { "content-type": "text/plain; charset=utf-8" } },
+    );
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
