@@ -5,11 +5,11 @@ Single-user personal app for Domenic: day planner, 2027 goal tracker with checkp
 ## Ground rules for every session (read first)
 
 1. **Never delete or overwrite existing work.** Before changing anything, inspect the repo and the Supabase project and summarize what already exists. Show the plan and wait for approval before writing code.
-2. Work on a new git branch per session (`v1-session-N`). Merge only after the owner checks the Vercel preview.
+2. Ship straight to the live site: after `npm run build` passes, commit and push to `main` (Vercel deploys planorama-8npn.vercel.app). No preview branches. (Changed by the owner on 2026-11-23: preview deployments lack the Supabase env vars and added setup work.)
 3. Database changes are **additive only**: new tables and new columns via migration files. No `DROP`, no `TRUNCATE`, no destructive `ALTER`. If an existing table already holds similar data (tasks, notes, lists), reuse it or add columns; never recreate it. If a destructive change seems needed, stop and ask.
 4. Do not touch the Fibe Check or Kitchenapp repos or Supabase projects. They are separate apps and stay in use.
 5. Follow the repo's existing conventions (CLAUDE.md, folder structure, components). Don't invent new folders or approaches when an existing pattern fits.
-6. The owner does not build locally. Every session ends with a pushed branch and a working Vercel preview URL.
+6. The owner does not build locally. Every session ends with the changes pushed to `main` and live on planorama-8npn.vercel.app, plus a short phone checklist.
 7. Ask design or flow questions before building anything this spec leaves unclear.
 
 ## Stack and fixed decisions
