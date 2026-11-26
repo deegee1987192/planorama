@@ -5,7 +5,8 @@ import { purgeOldDoneTasks } from "@/lib/data/tasks";
 /**
  * Runs on app load (and when the app comes back to the foreground).
  * Rollover: unfinished tasks (including partly-done ones) from earlier days move
- * to today, marked carried over. Deadlines are never changed here.
+ * to today, marked carried over, remembering the day they came from (rolled_from).
+ * Deadlines are never changed here.
  * Overnight clear: crossed-off tasks from earlier days move to Done.
  * Cleanup: tasks in Done are deleted 7 days after they were removed.
  * (Repeating tasks are handled when they're marked done; see setTaskDone.)
@@ -13,6 +14,26 @@ import { purgeOldDoneTasks } from "@/lib/data/tasks";
 export async function runDailyRules(): Promise<void> {
   const today = todayISO();
   const db = getSupabase();
+
+  // Remember the day each task was first planned for ("Rolled over from Friday").
+  // Only set once, so a task that rolls over several days keeps its original day.
+  const { data: rolling, error: findError } = await db
+    .from("tasks")
+    .select("do_on")
+    .eq("done", false)
+    .is("rolled_from", null)
+    .lt("do_on", today);
+  if (findError) throw findError;
+  const days = Array.from(new Set((rolling ?? []).map((t) => t.do_on as string)));
+  for (const day of days) {
+    const { error: markError } = await db
+      .from("tasks")
+      .update({ rolled_from: day })
+      .eq("done", false)
+      .is("rolled_from", null)
+      .eq("do_on", day);
+    if (markError) throw markError;
+  }
 
   const { error } = await db
     .from("tasks")

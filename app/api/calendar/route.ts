@@ -1,17 +1,22 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { calendarSources, loadCalendar } from "@/lib/calendar/ics";
+import { calendarSources, loadCalendar, type CalendarSource } from "@/lib/calendar/ics";
 import type { CalendarResponse } from "@/lib/calendar/types";
 
 export const dynamic = "force-dynamic";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** GET /api/calendar?start=YYYY-MM-DD&end=YYYY-MM-DD -> events from the ICS feeds. */
+/**
+ * GET /api/calendar?start=YYYY-MM-DD&end=YYYY-MM-DD -> events from the ICS feeds.
+ * Feeds come from Vercel env vars (*_ICS_URL) and from links added in the app
+ * (Account > Calendars, table calendar_feeds; only those switched on).
+ */
 export async function GET(request: NextRequest) {
+  const supabase = createServerSupabase();
   const {
     data: { user },
-  } = await createServerSupabase().auth.getUser();
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
   const start = request.nextUrl.searchParams.get("start") ?? "";
@@ -20,7 +25,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Bad date range" }, { status: 400 });
   }
 
-  const sources = calendarSources();
+  const sources: CalendarSource[] = calendarSources();
+  const { data: feeds, error: feedsError } = await supabase
+    .from("calendar_feeds")
+    .select("name, ics_url")
+    .eq("visible", true)
+    .order("sort_order")
+    .order("created_at");
+  if (feedsError) console.error("Couldn't read calendar_feeds:", feedsError.message);
+  for (const f of feeds ?? []) {
+    const url = String(f.ics_url).trim().replace(/^webcal:\/\//i, "https://");
+    if (!/^https?:\/\//i.test(url)) continue;
+    let name = String(f.name).trim() || "Calendar";
+    while (sources.some((s) => s.name === name)) name = `${name} 2`;
+    sources.push({ name, url });
+  }
+
   const results = await Promise.allSettled(sources.map((s) => loadCalendar(s, start, end)));
 
   const body: CalendarResponse = { calendars: sources.map((s) => s.name), events: [], errors: [] };

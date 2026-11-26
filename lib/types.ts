@@ -20,6 +20,8 @@ export interface Task {
   cleared_at: string | null;
   sort_order: number;
   carried_over: boolean;
+  /** The day it was first planned for, before it rolled over (null if it never rolled over). */
+  rolled_from: string | null;
   created_at: string;
 }
 
@@ -79,5 +81,16 @@ export interface Note {
 export interface InboxItem {
   id: string;
   text: string;
+  created_at: string;
+}
+
+/** A read-only calendar subscription link added in the app (Account > Calendars). */
+export interface CalendarFeed {
+  id: string;
+  name: string;
+  ics_url: string;
+  colour: string;
+  visible: boolean;
+  sort_order: number;
   created_at: string;
 }

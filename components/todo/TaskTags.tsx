@@ -1,5 +1,5 @@
 import { Clock, Flag, Repeat, ListChecks, CornerDownRight } from "lucide-react";
-import { formatTime, dayLabel, monthDay } from "@/lib/dates";
+import { formatTime, dayLabel, monthDay, pastDayName } from "@/lib/dates";
 import type { TaskSummary } from "@/lib/types";
 
 const chip = "inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-left text-xs font-semibold [&>svg]:shrink-0";
@@ -52,7 +52,7 @@ export function TaskTags({ task, today, hideDeadline }: { task: TaskSummary; tod
   if (task.carried_over && !task.done)
     tags.push(
       <span key="carried" className={`${chip} bg-amber-100 text-amber-800`}>
-        <CornerDownRight size={12} /> Carried over
+        <CornerDownRight size={12} /> {task.rolled_from ? `Rolled over from ${pastDayName(task.rolled_from, today)}` : "Carried over"}
       </span>,
     );
   if (task.repeat !== "none")

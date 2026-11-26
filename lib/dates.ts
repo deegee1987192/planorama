@@ -107,3 +107,29 @@ export function formatTimestamp(ts: string): string {
     minute: "2-digit",
   }).format(new Date(ts));
 }
+
+const WEEKDAYS_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** "Thursday" */
+export function weekdayLong(iso: string): string {
+  return WEEKDAYS_LONG[toUTC(iso).getUTCDay()];
+}
+
+/** "Thursday, November 26" */
+export function longDate(iso: string): string {
+  const d = toUTC(iso);
+  const month = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "long" }).format(d);
+  return `${weekdayLong(iso)}, ${month} ${d.getUTCDate()}`;
+}
+
+/** Monday of the week containing this date (weeks start on Monday). */
+export function weekStart(iso: string): string {
+  return addDays(iso, -((toUTC(iso).getUTCDay() + 6) % 7));
+}
+
+/** For "Rolled over from …": "yesterday", "Friday" within the last week, else "Nov 13". */
+export function pastDayName(iso: string, today = todayISO()): string {
+  if (iso === addDays(today, -1)) return "yesterday";
+  if (iso >= addDays(today, -6) && iso < today) return weekdayLong(iso);
+  return monthDay(iso);
+}

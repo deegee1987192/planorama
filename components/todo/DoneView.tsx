@@ -42,7 +42,7 @@ export function DoneView() {
     try {
       await setTaskDone(task, false);
       // Bring it back onto today if its day has passed.
-      if (!task.do_on || task.do_on < today) await updateTask(task.id, { do_on: today, carried_over: Boolean(task.do_on) });
+      if (!task.do_on || task.do_on < today) await updateTask(task.id, { do_on: today, carried_over: Boolean(task.do_on), rolled_from: task.do_on ? task.rolled_from ?? task.do_on : null });
       toast.show({ message: "Moved back to To-Do" });
     } catch (e) {
       toast.error("Couldn't restore task", e);

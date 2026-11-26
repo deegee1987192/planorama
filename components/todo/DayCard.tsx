@@ -87,7 +87,7 @@ export function DayCard({ date, today, tasks, onToggle, onPartial, onClear, onRe
 }
 
 /** Subtasks and notes, in small print under the task title. */
-function TaskExtras({ task }: { task: TaskSummary }) {
+export function TaskExtras({ task }: { task: TaskSummary }) {
   if (!task.subtasks.length && !task.notes.trim()) return null;
   return (
     <div className="mt-1.5 space-y-0.5">
@@ -115,7 +115,7 @@ function TaskExtras({ task }: { task: TaskSummary }) {
   );
 }
 
-function AddTaskRow({ date, onAdd }: { date: string; onAdd: (date: string, title: string) => Promise<void> }) {
+export function AddTaskRow({ date, onAdd }: { date: string; onAdd: (date: string, title: string) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);

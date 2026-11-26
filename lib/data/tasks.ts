@@ -64,7 +64,7 @@ export async function unclearTasks(ids: string[]): Promise<void> {
 
 /** Moves a task to another day, saving the new order of that day. */
 export async function moveTaskToDay(id: string, doOn: string, orderedIds: string[]): Promise<void> {
-  await updateTask(id, { do_on: doOn, carried_over: false });
+  await updateTask(id, { do_on: doOn, carried_over: false, rolled_from: null });
   await reorderTasks(orderedIds);
 }
 
@@ -123,7 +123,7 @@ export async function deleteTask(id: string): Promise<void> {
 
 export async function moveTaskTo(id: string, doOn: string): Promise<void> {
   const sort_order = await nextSortOrder(doOn);
-  await updateTask(id, { do_on: doOn, sort_order, carried_over: false });
+  await updateTask(id, { do_on: doOn, sort_order, carried_over: false, rolled_from: null });
 }
 
 export async function moveTaskToTomorrow(id: string): Promise<void> {

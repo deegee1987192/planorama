@@ -6,6 +6,7 @@ import { ArrowLeft, KeyRound, LogOut } from "lucide-react";
 import { useToast } from "@/components/providers/ToastProvider";
 import { getSupabase } from "@/lib/supabase/client";
 import { hasPin, rememberEmail, setPin } from "@/lib/pin";
+import { CalendarFeedsSection } from "@/components/CalendarFeedsSection";
 
 const onlyDigits = (v: string) => v.replace(/\D/g, "").slice(0, 4);
 
@@ -113,6 +114,8 @@ export default function AccountPage() {
             {saving ? "Saving…" : "Save PIN"}
           </button>
         </form>
+
+        <CalendarFeedsSection />
 
         <button type="button" onClick={signOut} className="btn w-full bg-white text-danger-text shadow-card">
           <LogOut size={18} /> Sign out

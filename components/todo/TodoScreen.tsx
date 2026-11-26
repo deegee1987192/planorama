@@ -9,16 +9,17 @@ import { addDays, dateRange, monthDay } from "@/lib/dates";
 import { useStoredBoolean } from "@/lib/use-local-storage";
 import { DayCard } from "./DayCard";
 import { DayEvents } from "./DayEvents";
+import { DayView } from "./DayView";
 import { TaskBoard } from "./TaskBoard";
 import { DeadlinesView } from "./DeadlinesView";
 import { DoneView } from "./DoneView";
 import { MonthView } from "./MonthView";
 import { useCalendarEvents, useDayTasks } from "./useDayTasks";
 
-type Mode = "week" | "month" | "deadlines" | "done";
+type Mode = "day" | "week" | "month" | "deadlines" | "done";
 
 export function TodoScreen() {
-  const [mode, setMode] = useState<Mode>("week");
+  const [mode, setMode] = useState<Mode>("day");
   // Shows read-only events from the calendar feeds (see lib/calendar) in the day cards.
   const [calendarOn, setCalendarOn] = useStoredBoolean("planorama.calendarOn", false);
 
@@ -44,6 +45,7 @@ export function TodoScreen() {
       <Segmented<Mode>
         label="View"
         options={[
+          { value: "day", label: "Day" },
           { value: "week", label: "Week" },
           { value: "month", label: "Calendar" },
           { value: "deadlines", label: "Deadlines" },
@@ -55,6 +57,7 @@ export function TodoScreen() {
         className="mx-auto mb-4 max-w-2xl"
       />
 
+      {mode === "day" && <DayView calendarOn={calendarOn} />}
       {mode === "week" && <WeekView calendarOn={calendarOn} />}
       {mode === "month" && <MonthView calendarOn={calendarOn} />}
       {mode === "deadlines" && (

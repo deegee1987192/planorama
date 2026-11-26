@@ -145,7 +145,7 @@ export function useDayTasks(start: string, end: string) {
       return prev
         .filter((t) => inRange || t.id !== task.id)
         .map((t) => {
-          if (t.id === task.id) return { ...t, do_on: toDate, carried_over: false, sort_order: orderedIds.indexOf(t.id) };
+          if (t.id === task.id) return { ...t, do_on: toDate, carried_over: false, rolled_from: null, sort_order: orderedIds.indexOf(t.id) };
           if (t.do_on === toDate && orderedIds.includes(t.id)) return { ...t, sort_order: orderedIds.indexOf(t.id) };
           return t;
         });

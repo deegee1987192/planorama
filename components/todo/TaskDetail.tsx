@@ -164,7 +164,7 @@ export function TaskDetail({ id }: { id: string }) {
 
           <div className="card space-y-4 p-4">
             <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
-              <DateField label="Do on" value={task.do_on} onChange={(do_on) => save({ do_on, carried_over: false })} />
+              <DateField label="Do on" value={task.do_on} onChange={(do_on) => save({ do_on, carried_over: false, rolled_from: null })} />
               <div>
                 <label className="label" htmlFor="time">
                   Time
