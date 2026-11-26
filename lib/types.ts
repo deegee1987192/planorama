@@ -94,3 +94,56 @@ export interface CalendarFeed {
   sort_order: number;
   created_at: string;
 }
+
+export type GoalTier = "big_goal" | "give_back" | "social" | "foundation";
+export type GoalStatus = "active" | "paused" | "archived";
+export type CheckpointStatus = "upcoming" | "active" | "done";
+export type TrackBy = "check" | "timer" | "number";
+
+export interface Goal {
+  id: string;
+  name: string;
+  /** What "done" looks like in December. */
+  result: string;
+  tier: GoalTier;
+  colour: string;
+  status: GoalStatus;
+  paused_until: string | null;
+  /** Day the pause started in the app (null for goals loaded already paused). */
+  paused_at: string | null;
+  start_date: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface Checkpoint {
+  id: string;
+  goal_id: string;
+  due_date: string;
+  title: string;
+  how_youll_know: string;
+  status: CheckpointStatus;
+  done_at: string | null;
+  best_result: string;
+  created_at: string;
+}
+
+export interface GoalAction {
+  id: string;
+  goal_id: string;
+  name: string;
+  per_week: number | null;
+  hours_per_week: number | null;
+  track_by: TrackBy;
+  unit: string;
+  /** 1 = Monday … 7 = Sunday */
+  preferred_days: number[];
+  preferred_time: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface GoalWithParts extends Goal {
+  checkpoints: Checkpoint[];
+  goal_actions: GoalAction[];
+}

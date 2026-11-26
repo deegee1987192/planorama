@@ -133,3 +133,8 @@ export function pastDayName(iso: string, today = todayISO()): string {
   if (iso >= addDays(today, -6) && iso < today) return weekdayLong(iso);
   return monthDay(iso);
 }
+
+/** Whole days from a to b (b - a). */
+export function daysBetween(a: string, b: string): number {
+  return Math.round((toUTC(b).getTime() - toUTC(a).getTime()) / 86400000);
+}

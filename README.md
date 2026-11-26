@@ -6,7 +6,7 @@ Next.js 14 (App Router) + Tailwind + Supabase, deployed on Vercel.
 
 ## Setup
 
-1. Run each file in `supabase/migrations/` (001 → 005, in order) in the Supabase SQL Editor. All are safe to re-run and only add things.
+1. Run each file in `supabase/migrations/` (001 → 006, in order) in the Supabase SQL Editor. All are safe to re-run and only add things.
 2. In Vercel, set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `OWNER_EMAIL` (only this account can use the app) and later `ANTHROPIC_API_KEY`.
 3. In Supabase Auth, add the site URL and `https://<your-domain>/auth/callback` as a redirect URL.
 

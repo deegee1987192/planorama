@@ -1,6 +1,8 @@
 import { getSupabase } from "@/lib/supabase/client";
 import { todayISO } from "@/lib/dates";
 import { purgeOldDoneTasks } from "@/lib/data/tasks";
+import { resumeEndedPauses } from "@/lib/data/goals";
+import { ensureStartingData } from "@/lib/goal-seed";
 
 /**
  * Runs on app load (and when the app comes back to the foreground).
@@ -51,4 +53,13 @@ export async function runDailyRules(): Promise<void> {
   if (clearError) throw clearError;
 
   await purgeOldDoneTasks();
+
+  // Goals: load the starting goals once, and resume goals whose pause has ended.
+  // A failure here must not stop the task rules above.
+  try {
+    await ensureStartingData();
+    await resumeEndedPauses(today);
+  } catch (e) {
+    console.error("Goal rules failed", e);
+  }
 }
